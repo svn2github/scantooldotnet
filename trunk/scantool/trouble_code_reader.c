@@ -695,7 +695,18 @@ int handle_read_codes(const char *vehicle_response)
    {
       if((i == 0) || (vehicle_response[i] == SPECIAL_DELIMITER)) // if we're just starting to read, or encountered delimiter
       {
-         i = (i == 0) ?  i + 2 : i + 3; //skip first 2 characters of response ("43") or 3 characters (incl. delimiter)
+         if ((vehicle_response[i] == SPECIAL_DELIMITER))
+            i++;  // skip delimiter
+            
+         if (vehicle_response[i] == '4' && vehicle_response[i+1] == '3')  // if response does starts with "43"
+            i += 2;  // skip "43"
+         else
+         {
+            // skip the response to the next delimiter
+            while(vehicle_response[i] && vehicle_response[i] != SPECIAL_DELIMITER)
+               i++;
+            continue;
+         }
 
          for(j = 0; j < 3; j++)    // read 3 codes (1 line has 3 codes)
           {
