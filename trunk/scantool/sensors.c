@@ -34,6 +34,7 @@ typedef struct
 static void load_sensor_states();
 static void save_sensor_states();
 static void fill_sensors(int page_number);
+static int find_valid_response(char *buf, const char *response);
 
 static int reset_chip_proc(int msg, DIALOG *d, int c);
 static int options_proc(int msg, DIALOG *d, int c);
@@ -775,7 +776,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
    static int ignore_device_not_connected = FALSE;
    static int retry_attempts = NUM_OF_RETRIES;
    static char vehicle_response[512]; // try 33 (11 bytes * 2 + 10 spaces + CR + '/0')
-   char comport_buffer[80]; // calculate actual value
+   char buf[80]; // TODO: calculate actual value
    int response_status = EMPTY; //status of the response: EMPTY, DATA, PROMPT
    int response_type;
    int ret = 0;
@@ -893,7 +894,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
                }
                else  // if we are receiving response
                {
-                  response_status = read_comport(comport_buffer);  // read comport
+                  response_status = read_comport(buf);  // read comport
                   
                   if (d->flags & D_DISABLED) // if the sensor is disabled
                   {
@@ -903,7 +904,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
                   
                   if(response_status == DATA) // if data detected in com port buffer
                   {
-                     strcat(vehicle_response, comport_buffer); // append contents of comport_buffer to vehicle_response
+                     strcat(vehicle_response, buf); // append contents of buf to vehicle_response
                   }
                   else if(response_status == PROMPT) // if '>' detected
                   {
@@ -915,66 +916,67 @@ int sensor_proc(int msg, DIALOG *d, int c)
                      if (new_page)
                         break;
                      
-                     strcat(vehicle_response, comport_buffer); // append contents of comport_buffer to vehicle_response
+                     strcat(vehicle_response, buf); // append contents of buf to vehicle_response
                      response_type = process_response(sensor->command, vehicle_response);
 
-                     if (response_type == HEX_DATA)// HEX_DATA received
+                     if (response_type == HEX_DATA)  // HEX_DATA received
                      {
-                        char delimiter_str[2];
-                        sprintf(delimiter_str, "%c", SPECIAL_DELIMITER);
-                        calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
-                        strtok(vehicle_response, delimiter_str); //if more than one sensor responded, use only the first one (should not happen)
-                        vehicle_response[4 + sensor->bytes * 2] = 0;  // solves problem where response is padded with zeroes (i.e., '41 05 7C 00 00 00')
-                        sensor->formula((int)strtol(vehicle_response + 4, 0, 16), vehicle_response); //plug the value into formula
-                        strcpy(sensor->screen_buf, vehicle_response);  // and copy result in screen buffer
-                        /* if current_sensor is the last sensor, set it to 0; otherwise current_sensor++ */
-                        current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1;
+                        if (find_valid_response(buf, vehicle_response))
+                        {
+                           calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
+                           buf[4 + sensor->bytes * 2] = 0;  // solves problem where response is padded with zeroes (i.e., '41 05 7C 00 00 00')
+                           sensor->formula((int)strtol(buf + 4, 0, 16), buf); //plug the value into formula
+                           strcpy(sensor->screen_buf, buf);  // and copy result in screen buffer
+                           /* if current_sensor is the last sensor, set it to 0; otherwise current_sensor++ */
+                           current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1;
+                           retry_attempts = NUM_OF_RETRIES;
+
+                           return D_REDRAWME;
+                        }
+                        else
+                           response_type = ERR_NO_DATA;
+                     }
+                     
+                     strcpy(sensor->screen_buf, "N/A");
+                     calculate_refresh_rate(SENSOR_NA); // calculate instantaneous/average refresh rates
+
+                     if(response_type == ERR_NO_DATA) // if we received "NO DATA", "N/A" will be printed
+                     {
+                        current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1; // next time poll next sensor
                         retry_attempts = NUM_OF_RETRIES;
                      }
+                     else if(response_type == BUS_ERROR) // if we received "BUS ERROR"
+                     {
+                        alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, "OK", NULL, 0, 0);
+                        retry_attempts = NUM_OF_RETRIES;
+                     }
+                     // if we received "BUS BUSY", "DATA ERROR", "<DATA ERROR", SERIAL_ERROR, or RUBBISH,
+                     // try to re-send the request, do nothing if successful and alert user if failed:
                      else
                      {
-                        strcpy(sensor->screen_buf, "N/A");
-                        calculate_refresh_rate(SENSOR_NA); // calculate instantaneous/average refresh rates
-
-                        if(response_type == ERR_NO_DATA) // if we received "NO DATA", "N/A" wiil be printed
+                        if(retry_attempts > 0)
                         {
-                           current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1; // next time poll next sensor
-                           retry_attempts = NUM_OF_RETRIES;
+                           retry_attempts--;
+                           return D_O_K;
                         }
-                        
-                        else if(response_type == BUS_ERROR) // if we received "BUS ERROR"
-                        {
-                           alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, "OK", NULL, 0, 0);
-                           retry_attempts = NUM_OF_RETRIES;
-                        }
-                           
-                        // if we received "BUS BUSY", "DATA ERROR", "<DATA ERROR", SERIAL_ERROR, or RUBBISH,
-                        // try to re-send the request, do nothing if successful and alert user if failed:
                         else
                         {
-                           if(retry_attempts > 0)
+                           switch (response_type)
                            {
-                              retry_attempts--;
-                              return D_O_K;
+                              case BUS_BUSY:
+                                 alert("OBD Bus Busy: could not read sensor", NULL, NULL, "OK", NULL, 0, 0);
+                                 break;
+                              case DATA_ERROR: case DATA_ERROR2:
+                                 alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable.", "OK", NULL, 0, 0);
+                                 break;
+                              case SERIAL_ERROR: case RUBBISH:
+                                 alert("Serial Link Error: please check connection", "between computer and OBD interface.", NULL, "OK", NULL, 0, 0);
+                                 break;
                            }
-                           else
-                           {
-                              switch (response_type)
-                              {
-                                 case BUS_BUSY:
-                                    alert("OBD Bus Busy: could not read sensor", NULL, NULL, "OK", NULL, 0, 0);
-                                    break;
-                                 case DATA_ERROR: case DATA_ERROR2:
-                                    alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable.", "OK", NULL, 0, 0);
-                                    break;
-                                 case SERIAL_ERROR: case RUBBISH:
-                                    alert("Serial Link Error: please check connection", "between computer and OBD interface.", NULL, "OK", NULL, 0, 0);
-                                    break;
-                              }
-                              retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
-                           }
-                        } // end of BUS_BUSY, DATA_ERROR, DATA_ERROR2, ERIAL_ERROR, and RUBBISH
-                     }
+                           retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
+                        }
+                     } // end of BUS_BUSY, DATA_ERROR, DATA_ERROR2, ERIAL_ERROR, and RUBBISH
+
                      return D_REDRAWME; //tell the parent control to redraw itself
                   }
                }
@@ -1026,6 +1028,41 @@ int sensor_proc(int msg, DIALOG *d, int c)
    }
 
    return D_O_K;
+}
+
+
+int find_valid_response(char *buf, const char *response)
+{
+   const char *in_ptr = response;
+   char *out_ptr = buf;
+   
+   buf[0] = 0;
+   
+   while (*in_ptr)
+   {
+      if (*in_ptr == '4' && *(in_ptr+1) == '1')  // If valid response is found
+      {
+         while (*in_ptr && *in_ptr != SPECIAL_DELIMITER) // copy valid response into buf
+         {
+            *out_ptr = *in_ptr;
+            in_ptr++;
+            out_ptr++;
+         }
+         *out_ptr = 0;  // terminate string
+         break;
+      }
+      else
+      {
+         // skip to the next delimiter
+         while (*in_ptr && *in_ptr != SPECIAL_DELIMITER)
+            in_ptr++;
+      }
+   }
+   
+   if (strlen(buf) > 0)
+      return TRUE;
+   else
+      return FALSE;
 }
 
 
