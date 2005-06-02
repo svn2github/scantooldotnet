@@ -34,6 +34,7 @@ typedef struct TROUBLE_CODE
 
 
 static int num_of_codes = 0;
+static int num_of_codes_reported = 0;
 static int current_code_index;
 static int simulate = FALSE;
 static int mil_is_on; // MIL is ON or OFF
@@ -61,7 +62,7 @@ static int current_code_proc(int msg, DIALOG *d, int c);
 
 // function definitions:
 static void trouble_codes_simulator(int show);
-static int handle_num_of_codes(const char *);
+static int handle_num_of_codes(char *);
 static int handle_read_codes(const char *);
 static void swap_strings(char *, char *);
 static void handle_errors(int error, int operation);
@@ -116,6 +117,7 @@ int display_trouble_codes()
    
    mil_is_on = FALSE; // reset MIL status
    num_of_codes = 0;
+   num_of_codes_reported = 0;
    
    centre_dialog(confirm_clear_dialog);  // center the popup dialog
 
@@ -139,11 +141,11 @@ void trouble_codes_simulator(int show)
    {
       strcpy(buf, SIM_CODES_STRING);
       process_response(NULL, buf);
-      num_of_codes = handle_read_codes(buf);
+      num_of_codes_reported = num_of_codes = handle_read_codes(buf);
       mil_is_on = TRUE;
    }
    else
-      num_of_codes = 0;
+      num_of_codes_reported = num_of_codes = 0;
 
    broadcast_dialog_message(MSG_READY, 0);
 }
@@ -234,7 +236,7 @@ int num_of_codes_proc(int msg, DIALOG *d, int c)
          break;
 
       case MSG_READY:
-         sprintf(d->dp, "%i", num_of_codes);
+         sprintf(d->dp, "%i", num_of_codes_reported);
          return D_REDRAWME;
    }
    
@@ -251,7 +253,7 @@ int mil_status_proc(int msg, DIALOG *d, int c)
          break;
 
       case MSG_READY:
-         if (num_of_codes == 0)
+         if (num_of_codes_reported == 0)
             mil_is_on = FALSE;
             
          if (mil_is_on)
@@ -285,7 +287,7 @@ int mil_text_proc(int msg, DIALOG *d, int c)
          break;
          
       case MSG_READY:
-         if (num_of_codes == 0)
+         if (num_of_codes_reported == 0)
             mil_is_on = FALSE;
             
          if (mil_is_on)
@@ -498,7 +500,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                            }
                            else
                            {
-                              num_of_codes = 0;
+                              num_of_codes_reported = num_of_codes = 0;
                               broadcast_dialog_message(MSG_READY,0);
                            }
                         }
@@ -510,16 +512,16 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                         if (response_type == ERR_NO_DATA)// vehicle didn't respond, check connection
                         {
                            verifying_connection = TRUE;
-                           num_of_codes = 0;
+                           num_of_codes = num_of_codes_reported = 0;
                         }
                         else if(response_type != HEX_DATA) // if we got an error,
                            handle_errors(response_type, NUM_OF_CODES);
                         else  // if there were *no* errors,
                         {
-                           num_of_codes = temp_num_of_codes;
+                           num_of_codes_reported = temp_num_of_codes;
                            // do some magic: convert chip response to actual code,
                            // find DTC description and solution (if they exist) and store the actual number of codes read in num_of_codes
-                           handle_read_codes(vehicle_response);
+                           num_of_codes = handle_read_codes(vehicle_response);
                            broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
                         }
                      }
@@ -533,7 +535,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                            handle_errors(response_type, CLEAR_CODES);
                         else // if everything's fine (received confirmation)
                         {
-                           num_of_codes = 0;
+                           num_of_codes = num_of_codes_reported = 0;
                            broadcast_dialog_message(MSG_READY, 0);
                         }
                      }
@@ -649,28 +651,25 @@ char* code_list_getter(int index, int *list_size)
 }
 
 
-int handle_num_of_codes(const char *vehicle_response)
+int handle_num_of_codes(char *vehicle_response)
 {
-   int temp, j, i = 0;
-   char temp_buf[7];
+   int temp;
+   char *response = vehicle_response;
+   char buf[16];
    int ret = 0;
 
-   while(vehicle_response[i])
+   while (*response)
    {
-      if((i == 0) || (vehicle_response[i] == SPECIAL_DELIMITER)) // if we're just starting to read, or encountered '*'
+      if (find_valid_response(buf, response, "41", &response))
       {
-         for(j = 0; j < 6; j++)    // read 6 characters of 'useful' data
-            temp_buf[j] = vehicle_response[i++];
-            
-         temp_buf[j] = '\0';                 // terminate string
-         temp = (int)strtol(temp_buf + 4, 0, 16); // convert hex ascii string to integer
+         buf[6] = 0;
+         temp = (int)strtol(buf + 4, 0, 16); // convert hex ascii string to integer
          if (temp & 0x80)
             mil_is_on = TRUE; // get MIL status from temp
          ret = ret + (temp & 0x7F);
-
-         continue;
       }
-      i++;
+      else
+         break;
    }
 
    return ret;

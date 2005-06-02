@@ -27,9 +27,10 @@ END_OF_STATIC_FUNCTION(serial_time_out_handler)
 
 void start_serial_timer(int delay)
 {
-    install_int_ex(serial_time_out_handler, MSEC_TO_TIMER(delay));  // install the timer
-    serial_time_out = FALSE;
-    serial_timer_running = TRUE;
+   stop_serial_timer();
+   install_int_ex(serial_time_out_handler, MSEC_TO_TIMER(delay));  // install the timer
+   serial_time_out = FALSE;
+   serial_timer_running = TRUE;
 }
 
 
@@ -194,6 +195,47 @@ int read_comport(char *response)
       return EMPTY;
    else                         //otherwise,
       return DATA;
+}
+
+
+int find_valid_response(char *buf, char *response, const char *mode, char **stop)
+{
+   char *in_ptr = response;
+   char *out_ptr = buf;
+
+   buf[0] = 0;
+
+   while (*in_ptr)
+   {
+      if (*in_ptr == mode[0] && *(in_ptr+1) == mode[1])  // If valid response is found
+      {
+         while (*in_ptr && *in_ptr != SPECIAL_DELIMITER) // copy valid response into buf
+         {
+            *out_ptr = *in_ptr;
+            in_ptr++;
+            out_ptr++;
+         }
+         *out_ptr = 0;  // terminate string
+         if (*in_ptr == SPECIAL_DELIMITER)
+            in_ptr++;
+         if (stop)
+            *stop = in_ptr;
+         break;
+      }
+      else
+      {
+         // skip to the next delimiter
+         while (*in_ptr && *in_ptr != SPECIAL_DELIMITER)
+            in_ptr++;
+         if (*in_ptr == SPECIAL_DELIMITER)  // skip the delimiter
+            in_ptr++;
+      }
+   }
+
+   if (strlen(buf) > 0)
+      return TRUE;
+   else
+      return FALSE;
 }
 
 

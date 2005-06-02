@@ -34,7 +34,6 @@ typedef struct
 static void load_sensor_states();
 static void save_sensor_states();
 static void fill_sensors(int page_number);
-static int find_valid_response(char *buf, const char *response);
 
 static int reset_chip_proc(int msg, DIALOG *d, int c);
 static int options_proc(int msg, DIALOG *d, int c);
@@ -921,7 +920,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
 
                      if (response_type == HEX_DATA)  // HEX_DATA received
                      {
-                        if (find_valid_response(buf, vehicle_response))
+                        if (find_valid_response(buf, vehicle_response, "41", NULL))
                         {
                            calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
                            buf[4 + sensor->bytes * 2] = 0;  // solves problem where response is padded with zeroes (i.e., '41 05 7C 00 00 00')
@@ -1028,41 +1027,6 @@ int sensor_proc(int msg, DIALOG *d, int c)
    }
 
    return D_O_K;
-}
-
-
-int find_valid_response(char *buf, const char *response)
-{
-   const char *in_ptr = response;
-   char *out_ptr = buf;
-   
-   buf[0] = 0;
-   
-   while (*in_ptr)
-   {
-      if (*in_ptr == '4' && *(in_ptr+1) == '1')  // If valid response is found
-      {
-         while (*in_ptr && *in_ptr != SPECIAL_DELIMITER) // copy valid response into buf
-         {
-            *out_ptr = *in_ptr;
-            in_ptr++;
-            out_ptr++;
-         }
-         *out_ptr = 0;  // terminate string
-         break;
-      }
-      else
-      {
-         // skip to the next delimiter
-         while (*in_ptr && *in_ptr != SPECIAL_DELIMITER)
-            in_ptr++;
-      }
-   }
-   
-   if (strlen(buf) > 0)
-      return TRUE;
-   else
-      return FALSE;
 }
 
 

@@ -48,7 +48,7 @@
 // timeouts
 #define OBD_REQUEST_TIMEOUT   3400
 #define ATZ_TIMEOUT           1100
-#define AT_TIMEOUT            30
+#define AT_TIMEOUT            50
 
 // function prototypes
 void serial_module_init();
@@ -60,6 +60,7 @@ int read_comport(char *response);
 void start_serial_timer(int delay);
 void stop_serial_timer();
 int process_response(const char *cmd_sent, char *msg_received);
+int find_valid_response(char *buf, char *response, const char *mode, char **stop);
 
 // variables
 volatile int serial_time_out;
