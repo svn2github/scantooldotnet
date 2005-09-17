@@ -1,6 +1,6 @@
 *********************************************************************
          ScanTool.net OBD-II Software v1.08 for ElmScan
-         Copyright (C) 2004 ScanTool.net, All Rights Reserved
+         Copyright (C) 2005 ScanTool.net LLC, All Rights Reserved
 *********************************************************************
 
 ======================================
@@ -35,19 +35,19 @@ our website located at http://www.ScanTool.net
 ======================================
 
 Windows:
-	- 486DX 25Mhz Processor
-	- 4Mb RAM
-	- Windows 95 or higher
-	- DirectX 7 or newer
-	- 640x480 display
-	- Serial port
+   - 486DX 25Mhz Processor
+   - 4Mb RAM
+   - Windows 95 or higher
+   - DirectX 7 or newer
+   - 640x480 display
+   - Serial port
 
 DOS:
-	- 386SX 10Mhz Processor or higher
-	- 1Mb RAM
-	- DOS v3.0
-	- 640x480 display
-	- Serial port
+   - 386SX 10Mhz Processor or higher
+   - 1Mb RAM
+   - DOS v3.0
+   - 640x480 display
+   - Serial port
 
 ======================================
 =========== Troubleshooting ==========
@@ -60,25 +60,25 @@ Support Page located at http://www.scantool.net/support
 =========== Version History ==========
 ======================================
 
-	v1.08  -  Fixed problem with ECUs that pad the response with 0's
-	v1.07  -  Added the rest of the sensors defined in SAE J1979 (APR2002)
-		  Added the rest of "designed to comply with" to Sensor Data
-	          Cleaned up portions of the code
-		  Added COM ports 5-8 to Options
-		  Updated codes.dat with latest generic P and U codes, and removed B and C codes
-		  System information dialog supports a wider range of processors and platforms	
-	v1.06  -  Fixed some problems with RS232, corrected air flow
-                  rate formula (US system), added 16 new sensors, 
-                  modified the layout of "Sensor Data", misc. bug 
-                  fixes
-	v1.04  -  Updated serial library, some bug fixes and 
-		  enhancements, support for multiple platforms and 
-		  compilers
-	v1.03  -  fixed incorrect display of some sensors when ELM323 
-		  is used (July 9, 2002)
-	v1.02	- Minor bug fixes (June 6, 2002)
-	v1.01	- Minor bug fixes (June 5, 2002)
-	v1.00 	- Initial release (June 1, 2002)
-
-
-(C) ScanTool.net, 2004
+   v1.09  -  Fixed erroneous interpretation of 7F responses (KWP2000)
+             Fixed number of codes reporting in Trouble Codes
+		       Fixed incorrect DTC interpretation when more than one response is received
+   v1.08  -  Fixed problem with ECUs that pad the response with 0's
+   v1.07  -  Added the rest of the sensors defined in SAE J1979 (APR2002)
+             Added the rest of "designed to comply with" to Sensor Data
+             Cleaned up portions of the code
+             Added COM ports 5-8 to Options
+             Updated codes.dat with latest generic P and U codes, and removed B and C codes
+             System information dialog supports a wider range of processors and platforms
+   v1.06  -  Fixed some problems with RS232
+             Corrected air flow rate formula (US system)
+             Added 16 new sensors
+             Modified the layout of "Sensor Data"
+             Misc. bug fixes
+   v1.04  -  Updated serial library
+             Some bug fixes and enhancements
+             Support for multiple platforms and compilers
+	v1.03  -  Fixed incorrect display of some sensors when ELM323 is used
+	v1.02	 -  Minor bug fixes
+	v1.01	 -  Minor bug fixes
+	v1.00  -  Initial release
