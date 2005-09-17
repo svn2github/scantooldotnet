@@ -1,7 +1,7 @@
 [Project]
 FileName=ScanTool.dev
 Name=ScanTool
-UnitCount=22
+UnitCount=23
 Icon=
 ObjFile=
 Type=0
@@ -16,7 +16,7 @@ Linker=-lalld -DDEBUG_@@_
 IsCpp=0
 ExeOutput=
 ObjectOutput=
-Folders=Resources
+Folders="Misc Files",Resources
 MakeIncludes=
 CommandLine=
 OverrideOutput=0
@@ -27,6 +27,8 @@ IncludeVersionInfo=0
 SupportXPThemes=0
 CompilerSet=0
 CompilerSettings=000000000000000000
+UseCustomMakefile=0
+CustomMakefile=
 
 [Views]
 ProjectView=1
@@ -266,4 +268,14 @@ LegalTrademarks=
 OriginalFilename=ScanTool.exe
 ProductName=ScanTool
 ProductVersion=0.1
+AutoIncBuildNr=0
+
+[Unit23]
+FileName=readme.txt
+Folder=Misc Files
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
 
