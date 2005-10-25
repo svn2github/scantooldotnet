@@ -62,7 +62,7 @@ Support Page located at http://www.scantool.net/support
 
    v1.09  -  Fixed erroneous interpretation of 7F responses (KWP2000)
              Fixed number of codes reporting in Trouble Codes
-		       Fixed incorrect DTC interpretation when more than one response is received
+             Fixed incorrect DTC interpretation when more than one response is received
    v1.08  -  Fixed problem with ECUs that pad the response with 0's
    v1.07  -  Added the rest of the sensors defined in SAE J1979 (APR2002)
              Added the rest of "designed to comply with" to Sensor Data
@@ -78,7 +78,8 @@ Support Page located at http://www.scantool.net/support
    v1.04  -  Updated serial library
              Some bug fixes and enhancements
              Support for multiple platforms and compilers
-	v1.03  -  Fixed incorrect display of some sensors when ELM323 is used
-	v1.02	 -  Minor bug fixes
-	v1.01	 -  Minor bug fixes
-	v1.00  -  Initial release
+   v1.03  -  Fixed incorrect display of some sensors when ELM323 is used
+   v1.02  -  Minor bug fixes
+   v1.01  -  Minor bug fixes
+   v1.00  -  Initial release
+
