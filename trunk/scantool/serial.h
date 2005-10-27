@@ -46,16 +46,17 @@
 #define RUBBISH        7
 
 // timeouts
-#define OBD_REQUEST_TIMEOUT   3400
-#define ATZ_TIMEOUT           1100
-#define AT_TIMEOUT            50
+#define OBD_REQUEST_TIMEOUT   7100
+#define ATZ_TIMEOUT           1200
+#define AT_TIMEOUT            130
+#define ECU_TIMEOUT           5000
 
 // function prototypes
 void serial_module_init();
 void serial_module_shutdown();
 int open_comport();
 void close_comport();
-void send_command(char *command);
+void send_command(const char *command);
 int read_comport(char *response);
 void start_serial_timer(int delay);
 void stop_serial_timer();
