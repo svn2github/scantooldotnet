@@ -35,10 +35,8 @@ END_COLOR_DEPTH_LIST
 
 #define WINDOW_TITLE   "ScanTool.net " SCANTOOL_VERSION_EX_STR
 
-static char log_file_name[] = "log.txt";
 
-
-static void write_log(const char *log_string)
+void write_log(const char *log_string)
 {
    FILE *logfile = NULL;
    
@@ -48,6 +46,20 @@ static void write_log(const char *log_string)
    fprintf(logfile, log_string);
    fclose(logfile);
 }
+
+
+#ifdef LOG_COMMS
+void write_comm_log(const char *marker, const char *data)
+{
+   FILE *logfile = NULL;
+
+   logfile = fopen(comm_log_file_name, "a");
+   if (logfile == NULL)
+      fatal_error("Could not open comm log file for writing!");
+   fprintf(logfile, "[%s]%s[/%s]\n", marker, data, marker);
+   fclose(logfile);
+}
+#endif
 
 
 static void init()
@@ -202,13 +214,21 @@ int main()
 {
    char temp_buf[64];
    time_t current_time;
-
-   remove(log_file_name);
-
+   
    time(&current_time);  // get current time, and store it in current_time
-   write_log(ctime(&current_time));
+   strcpy(temp_buf, ctime(&current_time));
+   temp_buf[strlen(temp_buf)-1] = 0;
+   
+   strcpy(log_file_name, "log.txt");
+   remove(log_file_name);
+   write_log(temp_buf);
+#ifdef LOG_COMMS
+   strcpy(comm_log_file_name, "comm_log.txt");
+   remove(comm_log_file_name);
+   write_comm_log("START_TIME", temp_buf);
+#endif
 
-   sprintf(temp_buf, "Version: %s for %s", SCANTOOL_VERSION_STR, SCANTOOL_PLATFORM_STR);
+   sprintf(temp_buf, "\nVersion: %s for %s", SCANTOOL_VERSION_STR, SCANTOOL_PLATFORM_STR);
    write_log(temp_buf);
 
    write_log("\n\nInitializing All Modules...\n---------------------------");
