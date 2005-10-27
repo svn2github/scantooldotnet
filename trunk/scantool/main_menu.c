@@ -124,34 +124,56 @@ void reset_chip()
 }
 
 
+// Reset states
+#define RESET_START        0
+#define RESET_WAIT_RX      1
+#define RESET_ECU_TIMEOUT  2
+
 int reset_proc(int msg, DIALOG *d, int c)
 {
-   static int command_sent = FALSE;
-   char temp_buf[80];
+   static int state = RESET_START;
+   char temp_buf[128];
    
    switch (msg)
    {
       case MSG_START:
-         command_sent = FALSE; // program just started, let's reset the chip
+         state = RESET_START;
          break;
    
       case MSG_IDLE:
-         if (!command_sent) // if command wasn't sent
+         switch (state)
          {
-            if (serial_timer_running) // and if serial timer is running
-            // wait until we either get a prompt or the timer times out
-               while ((read_comport(temp_buf) != PROMPT) && !serial_time_out);  
-            send_command("atz"); // reset the chip
-            start_serial_timer(ATZ_TIMEOUT);  // start serial timer
-            command_sent = TRUE;
-         }
-         else // if command was sent
-         {
-            if (serial_time_out || (read_comport(temp_buf) == PROMPT)) // if the timer timed out or we got the prompt
-            {
-               stop_serial_timer(); // stop the timer
-               return D_CLOSE; // close dialog
-            }
+            case RESET_START:
+               if (serial_timer_running) // and if serial timer is running
+               {
+                  // wait until we either get a prompt or the timer times out
+                  while ((read_comport(temp_buf) != PROMPT) && !serial_time_out)
+                     ;
+               }
+               send_command("atz"); // reset the chip
+               start_serial_timer(ATZ_TIMEOUT);  // start serial timer
+               state = RESET_WAIT_RX;
+               break;
+
+            case RESET_WAIT_RX:
+               if ((read_comport(temp_buf) == PROMPT))  // if we got the prompt
+               {
+                  start_serial_timer(ECU_TIMEOUT);
+                  state = RESET_ECU_TIMEOUT;
+               }
+               else if (serial_time_out) // if the timer timed out
+               {
+                  stop_serial_timer(); // stop the timer
+                  return D_CLOSE; // close dialog
+               }
+               break;
+               
+            case RESET_ECU_TIMEOUT:
+               if (serial_time_out) // if the timer timed out
+               {
+                  stop_serial_timer(); // stop the timer
+                  return D_CLOSE; // close dialog
+               }
          }
          break;
    }
