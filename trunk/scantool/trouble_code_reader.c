@@ -63,7 +63,7 @@ static int current_code_proc(int msg, DIALOG *d, int c);
 // function definitions:
 static void trouble_codes_simulator(int show);
 static int handle_num_of_codes(char *);
-static int handle_read_codes(const char *);
+static int handle_read_codes(char *);
 static void swap_strings(char *, char *);
 static void handle_errors(int error, int operation);
 static PACKFILE *file_handle(char code_letter);
@@ -414,14 +414,14 @@ int clear_codes_proc(int msg, DIALOG *d, int c)
 // heart of the trouble_code_reader module:
 int tr_code_proc(int msg, DIALOG *d, int c)
 {
-   static char vehicle_response[512];        // character buffer for car response
+   static char vehicle_response[1024];        // character buffer for car response
    static int receiving_response = FALSE;    // flag, "are we receiving response?"
    static int verifying_connection = FALSE;  // flag, "are we verifying connection?"
    static int current_request;               // NUM_OF_CODES, READ_CODES, CLEAR_CODES
    static int temp_num_of_codes;             // temporary storage for num_of_codes
    int response_status = EMPTY;              // EMPTY, DATA, PROMPT
    int response_type;                        // BUS_BUSY, BUS_ERROR, DATA_ERROR, etc.
-   char comport_buffer[80];                  // temporary storage for comport data
+   char comport_buffer[256];                  // temporary storage for comport data
 
    switch (msg)
    {
@@ -676,12 +676,13 @@ int handle_num_of_codes(char *vehicle_response)
 }
 
 
-int handle_read_codes(const char *vehicle_response)
+int handle_read_codes(char *vehicle_response)
 {
    char code_letter[] = "PCBU";
-   int i = 0, j, k, min;
+   int i, j, min;
    int trouble_codes_count = 0;
    char character;
+   char response[48];
    char temp_buf[1024];
    TROUBLE_CODE *trouble_codes_list;
    TROUBLE_CODE temp_trouble_code;
@@ -690,53 +691,35 @@ int handle_read_codes(const char *vehicle_response)
    if (get_number_of_codes() > 0)    // if the structure is not empty,
       clear_trouble_codes();
    
-   while(vehicle_response[i])
+   while(find_valid_response(response, vehicle_response, "43", &vehicle_response))
    {
-      if((i == 0) || (vehicle_response[i] == SPECIAL_DELIMITER)) // if we're just starting to read, or encountered delimiter
+      if ((strlen(response) - 2) % 4 != 0)
+         continue;
+         
+      for(i = 2; i < strlen(response); i += 4)    // read codes
       {
-         if ((vehicle_response[i] == SPECIAL_DELIMITER))
-            i++;  // skip delimiter
-            
-         if (vehicle_response[i] == '4' && vehicle_response[i+1] == '3')  // if response does starts with "43"
-            i += 2;  // skip "43"
-         else
-         {
-            // skip the response to the next delimiter
-            while(vehicle_response[i] && vehicle_response[i] != SPECIAL_DELIMITER)
-               i++;
-            continue;
-         }
-
-         for(j = 0; j < 3; j++)    // read 3 codes (1 line has 3 codes)
-          {
-            temp_trouble_code.code[0] = ' '; // make first position a blank space
-            // begin to copy from vehicle_response to temp_trouble_code.code beginning with position #1
-            for (k = 1; k < 5; k++)
-            {
-               temp_trouble_code.code[k] = vehicle_response[i];
-               i++;
-            }
-            temp_trouble_code.code[k] = '\0';  // terminate string
-            
-            if (strcmp(temp_trouble_code.code, " 0000") == 0) // if there's no trouble code,
-               break;      // break out of the for() loop
-            
-            // begin with position #1 (skip blank space), convert to hex, extract first two bits
-            // use the result as an index into the code_letter array to get the corresponding code letter
-            temp_trouble_code.code[0] = code_letter[strtol(temp_trouble_code.code + 1, 0, 16) >> 14];
-            
-            // get the 2nd digit of the trouble code ('1' in P1234)
-            // by right-shifting 12 bits (3 nibbles) and ANDing with 0011b
-            temp_trouble_code.code[1] = (strtol(temp_trouble_code.code + 1, 0, 16) >> 12) & 0x03;
-            temp_trouble_code.code[1] += 0x30; // convert to ASCII
-            temp_trouble_code.description = NULL; // clear the corresponding description...
-            temp_trouble_code.solution = NULL;  // ..and solution
-            add_trouble_code(&temp_trouble_code);
-            trouble_codes_count++;
-         }
-         continue;  // encountered SPECIAL_DELIMITER, do not increment i
+         temp_trouble_code.code[0] = ' '; // make first position a blank space
+         // begin to copy from response to temp_trouble_code.code beginning with position #1
+         for (j = 1; j < 5; j++)
+            temp_trouble_code.code[j] = response[i+j-1];
+         temp_trouble_code.code[j] = '\0';  // terminate string
+         
+         if (strcmp(temp_trouble_code.code, " 0000") == 0) // if there's no trouble code,
+            break;      // break out of the for() loop
+         
+         // begin with position #1 (skip blank space), convert to hex, extract first two bits
+         // use the result as an index into the code_letter array to get the corresponding code letter
+         temp_trouble_code.code[0] = code_letter[strtol(temp_trouble_code.code + 1, 0, 16) >> 14];
+         
+         // get the 2nd digit of the trouble code ('1' in P1234)
+         // by right-shifting 12 bits (3 nibbles) and ANDing with 0011b
+         temp_trouble_code.code[1] = (strtol(temp_trouble_code.code + 1, 0, 16) >> 12) & 0x03;
+         temp_trouble_code.code[1] += 0x30; // convert to ASCII
+         temp_trouble_code.description = NULL; // clear the corresponding description...
+         temp_trouble_code.solution = NULL;  // ..and solution
+         add_trouble_code(&temp_trouble_code);
+         trouble_codes_count++;
       }
-      i++;   // increment i until we find next SPECIAL_DELIMITER
    }  // end of while(), finished extracting codes
    
    for (i = 0; i < trouble_codes_count; i++)    // sort codes in ascending order
