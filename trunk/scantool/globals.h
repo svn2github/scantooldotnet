@@ -6,7 +6,7 @@
 #include "resource.h"
 
 
-#define LOG_COMMS   // Uncomment this line to enable serial comm logging
+//#define LOG_COMMS   // Uncomment this line to enable serial comm logging
 
 // system_of_measurements
 #define METRIC     0
