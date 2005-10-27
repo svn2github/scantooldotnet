@@ -197,11 +197,11 @@ DIALOG sensor_dialog[] =
    { page_updn_handler_proc, 0,   0,   0,   0,  0,       0,             0,    0,      0,   0,   0,               NULL, NULL },
    { d_shadow_box_proc,      40,  20,  560, 56, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
    { d_rtext_proc,           50,  25,  96,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Port Status:",  NULL, NULL },
-   { status_proc,            180, 25,  300, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
+   { status_proc,            178, 25,  310, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
    { reset_chip_proc,        490, 28,  100, 40, C_BLACK, C_GREEN,       'r',  D_EXIT, 0,   0,   "&Reset Chip",   NULL, NULL },
    { d_rtext_proc,           50,  51,  96,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Refresh rate:", NULL, NULL },
    { inst_refresh_rate_proc, 160, 51,  175, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { avg_refresh_rate_proc,  335, 51,  150, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
+   { avg_refresh_rate_proc,  335, 51,  153, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
    { d_box_proc,             40,  87,  560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
    { toggle_proc,            45,  91,  45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 0,   0,   NULL,            NULL, NULL },
    { sensor_proc,            95,  94,  504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
@@ -381,6 +381,7 @@ int inst_refresh_rate_proc(int msg, DIALOG *d, int c)
          break;
 
       case MSG_REFRESH:
+      case MSG_UPDATE:
       	sprintf(d->dp, "Instantaneous: %.2fHz", inst_refresh_rate);
          d->flags |= D_DIRTY;
          break;
@@ -410,6 +411,7 @@ int avg_refresh_rate_proc(int msg, DIALOG *d, int c)
          break;
 
       case MSG_REFRESH:
+      case MSG_UPDATE:
       	sprintf(d->dp, "Average: %.2fHz", avg_refresh_rate);
          d->flags |= D_DIRTY;
          break;
@@ -549,6 +551,8 @@ int page_flipper_proc(int msg, DIALOG *d, int c)
          current_page = last_page;
          
       fill_sensors(current_page);
+      inst_refresh_rate = 0;
+      avg_refresh_rate = 0;
       broadcast_dialog_message(MSG_UPDATE, 0);
 
       ret = D_REDRAWME;
@@ -574,6 +578,8 @@ int toggle_proc(int msg, DIALOG *d, int c)
          }
          strcpy(d->dp, "ON");
          d->bg = C_GREEN;
+         // Fall through
+
       case MSG_UPDATE:
          if (d->d1 >= sensors_on_page)
          {
@@ -651,6 +657,8 @@ int toggle_all_proc(int msg, DIALOG *d, int c)
          if ((d->dp = calloc(64, sizeof(char))) == NULL)
             fatal_error("Could not allocate enough memory for toggle_all button caption"); // do not translate
          strcpy(d->dp, "All OFF");
+         // Fall through
+         
       case MSG_UPDATE:
          if (sensors_on_page == 0)
          {
@@ -679,6 +687,9 @@ int toggle_all_proc(int msg, DIALOG *d, int c)
             d->d2 = 0;
             strcpy(d->dp, "All ON");
             d->bg = C_GREEN;
+            inst_refresh_rate = 0;
+            avg_refresh_rate = 0;
+            broadcast_dialog_message(MSG_REFRESH, 0);
          }
          d->flags |= D_DIRTY;
          break;
@@ -774,8 +785,8 @@ int sensor_proc(int msg, DIALOG *d, int c)
    static int num_of_sensors_timed_out = 0;
    static int ignore_device_not_connected = FALSE;
    static int retry_attempts = NUM_OF_RETRIES;
-   static char vehicle_response[512]; // try 33 (11 bytes * 2 + 10 spaces + CR + '/0')
-   char buf[80]; // TODO: calculate actual value
+   static char vehicle_response[1024];
+   char buf[256];
    int response_status = EMPTY; //status of the response: EMPTY, DATA, PROMPT
    int response_type;
    int ret = 0;
