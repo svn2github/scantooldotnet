@@ -203,6 +203,7 @@ int read_codes_proc(int msg, DIALOG *d, int c)
 int sensor_data_proc(int msg, DIALOG *d, int c)
 {
    int ret;
+   int reset = FALSE;
    ret = nostretch_icon_proc(msg, d, c); // call the parent object
 
    if (msg == MSG_GOTMOUSE) // if we got mouse, display description
@@ -212,10 +213,10 @@ int sensor_data_proc(int msg, DIALOG *d, int c)
    {
       if (comport.status != READY)
       {
+         reset = TRUE;
          if (open_comport() != 0)
          {
             comport.status = NOT_OPEN;   // reset comport status
-
             while (comport.status == NOT_OPEN)
             {
                if (alert("COM Port could not be opened.", "Please check that port settings are correct", "and that no other application is using it", "&Configure Port", "&Ignore", 'c', 'i') == 1)
@@ -227,7 +228,7 @@ int sensor_data_proc(int msg, DIALOG *d, int c)
          else
             comport.status = READY;
       }
-      display_sensor_dialog();  // display sensor data dialog
+      display_sensor_dialog(reset);  // display sensor data dialog
       strcpy(button_description, welcome_message);
       return D_REDRAW;
    }
@@ -282,7 +283,8 @@ int tests_proc(int msg, DIALOG *d, int c)
 
 int options_proc(int msg, DIALOG *d, int c)
 {
-   static int chip_was_reset = FALSE; 
+   static int chip_was_reset = FALSE;
+   int old_port;
    int ret;
 
    switch (msg)
@@ -311,7 +313,10 @@ int options_proc(int msg, DIALOG *d, int c)
 
    if (ret == D_CLOSE)           // trap the close value
    {
+      old_port = comport.number;
       display_options(); // display options dialog
+      if (comport.number != old_port)
+         chip_was_reset = FALSE;
       return D_REDRAWME;
    }
    return ret;  // return

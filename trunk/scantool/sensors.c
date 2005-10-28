@@ -94,7 +94,7 @@ static void clr_time_formula(int data, char *buf);
 
 // variables
 static int device_connected = FALSE;
-static int reset_hardware = TRUE;
+static int reset_hardware = FALSE;
 static int num_of_sensors = 0;
 static int num_of_disabled_sensors = 0;
 static int sensors_on_page = 0;
@@ -248,7 +248,7 @@ void inc_refresh_time(void)
 END_OF_FUNCTION(inc_refresh_time);
 
 
-int display_sensor_dialog()
+int display_sensor_dialog(int reset)
 {
    int i;
    int ret;
@@ -257,7 +257,8 @@ int display_sensor_dialog()
    num_of_sensors = i;
    
    current_page = 0;
-   reset_hardware = TRUE;
+   if (reset)
+      reset_hardware = TRUE;
    
    load_sensor_states();
    fill_sensors(0);
@@ -332,7 +333,10 @@ int reset_chip_proc(int msg, DIALOG *d, int c)
    
    if (ret == D_CLOSE)
    {
-      reset_hardware = TRUE;
+      if (comport.status == READY)
+         reset_hardware = TRUE;
+      else
+         alert("Port is not ready.", NULL, NULL, "OK", NULL, 0, 0);
       ret = D_REDRAWME;
    }
    
@@ -342,11 +346,15 @@ int reset_chip_proc(int msg, DIALOG *d, int c)
 
 int options_proc(int msg, DIALOG *d, int c)
 {
+   int old_port;
    int ret = d_button_proc(msg, d, c);
 
    if (ret == D_CLOSE)
    {
+      old_port = comport.number;
       display_options();
+      if (comport.number != old_port)
+         reset_hardware = TRUE;
       ret = D_REDRAWME;
    }
 
@@ -792,7 +800,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
    int ret = 0;
    SENSOR *sensor = (SENSOR *)d->dp3; // create a pointer to SENSOR structure in dp3 (vm)
 
-   if ((msg == MSG_IDLE) && reset_hardware) // if user hit "Reset Chip" button, and we're doing nothing
+   if ((msg == MSG_IDLE) && reset_hardware && comport.status == READY) // if user hit "Reset Chip" button, and we're doing nothing
    {
       reset_hardware = FALSE;	 
       if (receiving_response) 
