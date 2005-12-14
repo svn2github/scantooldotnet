@@ -88,7 +88,7 @@ int open_comport()
    }
 
    GetCommState(com_port, &dcb);
-   dcb.BaudRate = 9600;
+   dcb.BaudRate = comport.baud_rate;
    dcb.ByteSize = 8;
    dcb.StopBits = ONESTOPBIT;
    dcb.fParity = FALSE;
@@ -112,7 +112,7 @@ int open_comport()
    SetCommTimeouts(com_port, &timeouts);
 #else
    com_port = comm_port_init(comport.number);
-   comm_port_set_baud_rate(com_port, _9600);
+   comm_port_set_baud_rate(com_port, comport.baud_rate);
    comm_port_set_parity(com_port, NO_PARITY);
    comm_port_set_data_bits(com_port, BITS_8);
    comm_port_set_stop_bits(com_port, STOP_1);

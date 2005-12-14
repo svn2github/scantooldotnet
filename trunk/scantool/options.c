@@ -4,6 +4,7 @@
 #include "options.h"
 
 #define MSG_SAVE_OPTIONS   MSG_USER
+#define MSG_REFRESH        MSG_USER + 1
 
 // Define defaults
 #ifdef ALLEGRO_WINDOWS
@@ -13,6 +14,7 @@
 #endif
 #define DEFAULT_SYSTEM_OF_MEASURMENTS   IMPERIAL
 #define DEFAULT_COMPORT_NUMBER          COM1
+#define DEFAULT_BAUD_RATE               BAUD_RATE_9600
 
 typedef struct
 {
@@ -26,13 +28,13 @@ static int save_options_proc(int msg, DIALOG *d, int c);
 static DIALOG options_dialog[] =
 {
    /* (proc)              (x)  (y)  (w)  (h)  (fg)      (bg)           (key) (flags) (d1) (d2) (dp)                       (dp2) (dp3)                               */
-   { d_shadow_box_proc,   0,   0,   231, 376, 0,         C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,                      NULL, NULL                                },
+   { d_shadow_box_proc,   0,   0,   231, 440, 0,         C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,                      NULL, NULL                                },
    { d_shadow_box_proc,   0,   0,   231, 24,  0,         C_DARK_GRAY,   0,    0,      0,   0,   NULL,                      NULL, NULL                                },
    { caption_proc,        115, 2,   113, 19,  C_WHITE,   C_TRANSP,      0,    0,      0,   0,   "Program Options",         NULL, NULL                                },
    { d_text_proc,         16,  32,  200, 16,  C_BLACK,   C_TRANSP,      0,    0,      0,   0,   "System Of Measurements:", NULL, NULL                                },
    { option_element_proc, 48,  56,  80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      0,   0,   "Metric",                  NULL, &(OPTION_ELEMENT){METRIC}           },
    { option_element_proc, 48,  72,  88,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      0,   0,   "US",                      NULL, &(OPTION_ELEMENT){IMPERIAL}         },
-   { d_text_proc,         16,  96,  152, 16,  C_BLACK,   C_TRANSP,      0,    0,      0,   0,   "COM Port Settings:",      NULL, NULL                                },
+   { d_text_proc,         16,  96,  152, 16,  C_BLACK,   C_TRANSP,      0,    0,      0,   0,   "COM Port:",               NULL, NULL                                },
    { option_element_proc, 48,  120, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      1,   0,   "COM1",                    NULL, &(OPTION_ELEMENT){COM1}             },
    { option_element_proc, 48,  136, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      1,   0,   "COM2",                    NULL, &(OPTION_ELEMENT){COM2}             },
    { option_element_proc, 48,  152, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      1,   0,   "COM3",                    NULL, &(OPTION_ELEMENT){COM3}             },
@@ -41,11 +43,14 @@ static DIALOG options_dialog[] =
    { option_element_proc, 48,  200, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      1,   0,   "COM6",                    NULL, &(OPTION_ELEMENT){COM6}             },
    { option_element_proc, 48,  216, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      1,   0,   "COM7",                    NULL, &(OPTION_ELEMENT){COM7}             },
    { option_element_proc, 48,  232, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      1,   0,   "COM8",                    NULL, &(OPTION_ELEMENT){COM8}             },
-   { d_text_proc,         16,  256, 200, 16,  C_BLACK,   C_TRANSP,      0,    0,      0,   0,   "Display Mode:",           NULL, NULL                                },
-   { option_element_proc, 48,  280, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      2,   0,   "Windowed",                NULL, &(OPTION_ELEMENT){WINDOWED_MODE}    },
-   { option_element_proc, 48,  296, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      2,   0,   "Full Screen",             NULL, &(OPTION_ELEMENT){FULL_SCREEN_MODE} },
-   { save_options_proc,   16,  320, 92,  40,  C_BLACK,   C_GREEN,       's',  D_EXIT, 0,   0,   "&Save",                   NULL, NULL                                },
-   { d_button_proc,       123, 320, 92,  40,  C_BLACK,   C_DARK_YELLOW, 'c',  D_EXIT, 0,   0,   "&Cancel",                 NULL, NULL                                },
+   { d_text_proc,         16,  256, 200, 16,  C_BLACK,   C_TRANSP,      0,    0,      0,   0,   "Baud Rate:",              NULL, NULL                                },
+   { option_element_proc, 48,  280, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      2,   0,   "9600",                    NULL, &(OPTION_ELEMENT){BAUD_RATE_9600}   },
+   { option_element_proc, 48,  296, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      2,   0,   "38400",                   NULL, &(OPTION_ELEMENT){BAUD_RATE_38400}  },
+   { d_text_proc,         16,  320, 200, 16,  C_BLACK,   C_TRANSP,      0,    0,      0,   0,   "Display Mode:",           NULL, NULL                                },
+   { option_element_proc, 48,  344, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      3,   0,   "Windowed",                NULL, &(OPTION_ELEMENT){WINDOWED_MODE}    },
+   { option_element_proc, 48,  360, 80,  10,  C_BLACK,   C_LIGHT_GRAY,  0,    0,      3,   0,   "Full Screen",             NULL, &(OPTION_ELEMENT){FULL_SCREEN_MODE} },
+   { save_options_proc,   16,  384, 92,  40,  C_BLACK,   C_GREEN,       's',  D_EXIT, 0,   0,   "&Save",                   NULL, NULL                                },
+   { d_button_proc,       123, 384, 92,  40,  C_BLACK,   C_DARK_YELLOW, 'c',  D_EXIT, 0,   0,   "&Cancel",                 NULL, NULL                                },
    { NULL,                0,   0,   0,   0,   0,       0,               0,    0,      0,   0,   NULL,                      NULL, NULL                                }
 };
 
@@ -68,23 +73,43 @@ int option_element_proc(int msg, DIALOG *d, int c)
    switch (msg)
    {
       case MSG_START:
+      case MSG_REFRESH:
          switch (d->d1)
          {
             case 0:
                if (option_element->option_value == system_of_measurements) // if the element should be selected
-                  d->flags |= D_SELECTED;  // make it selected
+                  d->flags |= D_SELECTED;
+               else
+                  d->flags &= ~D_SELECTED;
                break;
+               
             case 1:
                if (option_element->option_value == comport.number)
-                  d->flags |= D_SELECTED; // make it selected
+                  d->flags |= D_SELECTED;
+               else
+                  d->flags &= ~D_SELECTED;
                break;
+               
             case 2:
+               if (option_element->option_value == comport.baud_rate)
+                  d->flags |= D_SELECTED;
+               else
+                  d->flags &= ~D_SELECTED;
+               break;
+               
+            case 3:
                if (option_element->option_value == (display_mode & WINDOWED_MODE))
                   d->flags |= D_SELECTED; // make it selected
+               else
+                  d->flags &= ~D_SELECTED;
                if (((option_element->option_value == WINDOWED_MODE) && !(display_mode & WINDOWED_MODE_SUPPORTED)) || ((option_element->option_value == FULL_SCREEN_MODE) && !(display_mode & FULLSCREEN_MODE_SUPPORTED)))
                   d->flags |= D_DISABLED;
+               else
+                  d->flags &= ~D_DISABLED;
                break;
          }
+         if (msg == MSG_REFRESH)
+            msg = MSG_DRAW;
          break;
 
       case MSG_SAVE_OPTIONS:
@@ -94,10 +119,16 @@ int option_element_proc(int msg, DIALOG *d, int c)
                case 0:
                   system_of_measurements = option_element->option_value;
                   break;
+                  
                case 1:
                   comport.number = option_element->option_value;
                   break;
+
                case 2:
+                  comport.baud_rate = option_element->option_value;
+                  break;
+                  
+               case 3:
                   display_mode &= ~WINDOWED_MODE;
                   display_mode |= option_element->option_value;
                   break;
@@ -117,6 +148,7 @@ int option_element_proc(int msg, DIALOG *d, int c)
 int save_options_proc(int msg, DIALOG *d, int c)
 {
    int ret;
+   int old_baud_rate;
    BITMAP *bmp;
    FILE *file;
 
@@ -124,7 +156,18 @@ int save_options_proc(int msg, DIALOG *d, int c)
 
    if (ret == D_CLOSE)
    {
+      old_baud_rate = comport.baud_rate;
       broadcast_dialog_message(MSG_SAVE_OPTIONS, 0);
+      
+      if (comport.baud_rate != old_baud_rate)
+      {
+         if (alert("WARNING!", "This operation may cause scan tool to stop responding.", "Are you sure you want to change the baud rate?", "Yes", "No", 0, 0) != 1)
+         {
+            comport.baud_rate = old_baud_rate;
+            broadcast_dialog_message(MSG_REFRESH, 0);
+            return D_O_K;
+         }
+      }
 
       close_comport(); // close current comport
       open_comport(); // try reinitializing comport (comport.status will be set)
@@ -184,6 +227,7 @@ int save_options_proc(int msg, DIALOG *d, int c)
 void load_program_options()
 {
    comport.number = get_config_int("comm", "comport_number", DEFAULT_COMPORT_NUMBER);
+   comport.baud_rate = get_config_int("comm", "baud_rate", DEFAULT_BAUD_RATE);
    system_of_measurements = get_config_int("general", "system_of_measurements", DEFAULT_SYSTEM_OF_MEASURMENTS);
    if (get_config_int("general", "display_mode", DEFAULT_DISPLAY_MODE))
       display_mode |= WINDOWED_MODE_SET;
@@ -199,6 +243,7 @@ void save_program_options()
       set_config_int("general", "display_mode", WINDOWED_MODE);
    else
       set_config_int("general", "display_mode", FULL_SCREEN_MODE);
+   set_config_int("comm", "baud_rate", comport.baud_rate);
    set_config_int("comm", "comport_number", comport.number);
    flush_config_file();
 }

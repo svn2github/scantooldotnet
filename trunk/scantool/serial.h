@@ -10,6 +10,8 @@
    #define COM6   5
    #define COM7   6
    #define COM8   7
+   #define BAUD_RATE_9600    9600
+   #define BAUD_RATE_38400   38400
 #else
    #define DZCOMM_SECONDARY_INCLUDE
    #include <dzcomm.h>
@@ -21,6 +23,8 @@
    #define COM6   _com6
    #define COM7   _com7
    #define COM8   _com8
+   #define BAUD_RATE_9600    _9600
+   #define BAUD_RATE_38400   _38400
 #endif
 
 //read_comport returned data type
@@ -69,6 +73,7 @@ volatile int serial_timer_running;
 
 struct COMPORT {
    int number;
+   int baud_rate;
    int status;    // READY, NOT_OPEN, USER_IGNORED
 } comport;
 
