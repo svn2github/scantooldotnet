@@ -26,7 +26,7 @@ static DIALOG about_dialog[] =
    { large_text_proc,          25,  224, 256, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "What can it do?",      NULL, NULL },
    { super_textbox_proc,       25,  248, 407, 98,  C_BLACK, C_WHITE,       0,    0,      0,   0,   whatcanitdo,            NULL, NULL },
    { large_text_proc,          25,  354, 256, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Where can I get it?",  NULL, NULL },
-   { super_textbox_proc,       25,  378, 590, 44,  C_BLACK, C_WHITE,       0,    0,      0,   0,   wheretoget,             NULL, NULL },
+   { super_textbox_proc,       25,  378, 590, 80,  C_BLACK, C_WHITE,       0,    0,      0,   0,   wheretoget,             NULL, NULL },
    { d_box_proc,               440, 136, 175, 175, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,                   NULL, NULL },
    { about_this_computer_proc, 448, 144, 160, 48,  C_BLACK, C_GREEN,       'c',  D_EXIT, 0,   0,   "About this &computer", NULL, NULL },
    { thanks_proc,              448, 200, 160, 48,  C_BLACK, C_DARK_YELLOW, 'r',  D_EXIT, 0,   0,   "C&redits",             NULL, NULL },
@@ -41,12 +41,12 @@ static DIALOG thanks_dialog[] =
    { d_shadow_box_proc, 0,   0,   608, 24,  C_BLACK, C_DARK_GRAY,   0,    0,      0,   0,   NULL,     NULL, NULL },
    { caption_proc,      304, 2,   301, 19,  C_WHITE, C_TRANSP,      0,    0,      0,   0,   "We would like to thank the following people and organizations:", NULL, NULL },
    { d_text_proc,       24,  36,  560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- DJ Delorie (www.delorie.com) for the DJGPP compiler ", NULL, NULL },
-   { d_text_proc,       24,  60,  560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- Bloodshed Software (www.bloodshed.net) for Dev-C++ IDE", NULL, NULL },
+   { d_text_proc,       24,  60,  560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- Bloodshed Software (www.bloodshed.net) for the Dev-C++ IDE", NULL, NULL },
    { d_text_proc,       24,  84,  560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- Shawn Hargreaves for creating the Allegro library", NULL, NULL },
    { d_text_proc,       24,  108, 560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- Dim Zegebart and Neil Townsend for the DZComm serial library", NULL, NULL },
    { d_text_proc,       24,  132, 560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- Julien Cugniere for his Allegro dialog editor", NULL, NULL },
    { d_text_proc,       24,  156, 560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- Eric Botcazou and Allegro mailing list folks for their tips and suggestions", NULL, NULL },
-//   { d_text_proc,       24,  180, 560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- ", NULL, NULL },
+   { d_text_proc,       24,  180, 560, 24,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "- All users who provided feedback and bug reports", NULL, NULL },
    { d_button_proc,     248, 211, 112, 40,  C_BLACK, C_DARK_YELLOW, 'c',  D_EXIT, 0,   0,   "&Close", NULL, NULL },
    { NULL,              0,   0,   0,   0,   0,       0,             0,    0,      0,   0,   NULL,     NULL, NULL }
 };
@@ -54,9 +54,9 @@ static DIALOG thanks_dialog[] =
 
 int display_about()
 {
-   strcpy(whatisit, "ScanTool.net OBDII Software is a program designed to work with ElmScan, our inexpensive alternative to professional OBDII Scan Tools.  You may get the latest version from www.ScanTool.net");
-   sprintf(whatcanitdo, "Version %s allows you to read and clear trouble codes, and display real-time sensor data.  More advanced features, such as data logging,  graphs, and support for additional test modes will be added in later versions.", SCANTOOL_VERSION_STR);
-   strcpy(wheretoget, "You may build the interface yourself or buy one from us.  We accept checks, money orders, and major credit cards through PayPal.");
+   strcpy(whatisit, "ScanTool.net is multi-platform, open-source software designed to work with the ElmScan family of OBD-II interfaces, our inexpensive alternatives to professional diagnostic scan tools.");
+   sprintf(whatcanitdo, "ScanTool.net v%s allows you to read and clear trouble codes, and display real-time sensor data.  Software with more advanced features, such as data logging,  virtual dashboard, and support for additional test modes is available from third-party vendors.", SCANTOOL_VERSION_STR);
+   strcpy(wheretoget, "You can download the latest version of this software, and buy your scan tool from www.ScanTool.net. There, you can also find contact information for your local distributor, and links to third-party software.");
 
    return do_dialog(about_dialog, -1); // do the dialog
 }
