@@ -1,5 +1,5 @@
 *********************************************************************
-         ScanTool.net OBD-II Software v1.08 for ElmScan
+         ScanTool.net OBD-II Software v1.10 for ElmScan
          Copyright (C) 2005 ScanTool.net LLC, All Rights Reserved
 *********************************************************************
 
@@ -19,10 +19,10 @@ more details.
 ============ Introduction ============
 ======================================
 
-ScanTool.net OBDII Software for ElmScan (Windows version) is free 
+ScanTool.net OBD-II Software for ElmScan (Windows version) is free
 software that allows you to use your computer and an inexpensive 
 hardware interface to read information from your car's computer.  
-Version 1.08 allows you to read trouble codes and see their 
+Version 1.10 allows you to read trouble codes and see their
 descriptions, clear the codes and turn off the "Check Engine" light, 
 and display real-time sensor data such as RPM, Engine Load, Vehicle 
 Speed, Coolant Temperature, and Timing Advance.
@@ -60,9 +60,18 @@ Support Page located at http://www.scantool.net/support
 =========== Version History ==========
 ======================================
 
+   v1.10  -  Added baud rate switching
+             Made compatible with ELM327
+             Added protocol detection to reset interface dialog
+             Added pending DTCs
+             DTCs are now read even if ECU reports 0 codes
+             Added OBD Information dialog
+             Cleaned up Main Menu
+             Updated About dialog
+             Misc. bug/cosmetic fixes
    v1.09  -  Fixed erroneous interpretation of 7F responses (KWP2000)
              Fixed number of codes reporting in Trouble Codes
-             Fixed incorrect DTC interpretation when more than one response is received
+             Fixed possible incorrect DTC interpretation when more than one response is received
    v1.08  -  Fixed problem with ECUs that pad the response with 0's
    v1.07  -  Added the rest of the sensors defined in SAE J1979 (APR2002)
              Added the rest of "designed to comply with" to Sensor Data
