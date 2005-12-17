@@ -15,13 +15,15 @@
 
 ; MUI Settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "scantool.ico"
-!define MUI_UNICON "scantool.ico"
+!define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+!define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
 
 ; Welcome page
 !insertmacro MUI_PAGE_WELCOME
 ; License page
 !insertmacro MUI_PAGE_LICENSE "gpl.txt"
+; Components page
+!insertmacro MUI_PAGE_COMPONENTS
 ; Directory page
 !insertmacro MUI_PAGE_DIRECTORY
 ; Start menu page
@@ -72,10 +74,48 @@ Section "" SEC01
   !insertmacro MUI_STARTMENU_WRITE_END
 SectionEnd
 
+Section /o "Source Code" SEC02
+  SetOutPath "$INSTDIR\source"
+  File "C:\Dev\C\ScanTool\version.h"
+  File "C:\Dev\C\ScanTool\trouble_code_reader.h"
+  File "C:\Dev\C\ScanTool\trouble_code_reader.c"
+  File "C:\Dev\C\ScanTool\serial.h"
+  File "C:\Dev\C\ScanTool\serial.c"
+  File "C:\Dev\C\ScanTool\sensors.h"
+  File "C:\Dev\C\ScanTool\sensors.c"
+  File "C:\Dev\C\ScanTool\scantool.rc"
+  File "C:\Dev\C\ScanTool\scantool.ico"
+  File "C:\Dev\C\ScanTool\scantool.h"
+  File "C:\Dev\C\ScanTool\about.c"
+  File "C:\Dev\C\ScanTool\scantool.dat"
+  File "C:\Dev\C\ScanTool\resource.h"
+  File "C:\Dev\C\ScanTool\readme.txt"
+  File "C:\Dev\C\ScanTool\options.h"
+  File "C:\Dev\C\ScanTool\options.c"
+  File "C:\Dev\C\ScanTool\makefile"
+  File "C:\Dev\C\ScanTool\main_menu.h"
+  File "C:\Dev\C\ScanTool\main_menu.c"
+  File "C:\Dev\C\ScanTool\main.c"
+  File "C:\Dev\C\ScanTool\gpl.txt"
+  File "C:\Dev\C\ScanTool\globals.h"
+  File "C:\Dev\C\ScanTool\error_handlers.h"
+  File "C:\Dev\C\ScanTool\error_handlers.c"
+  File "C:\Dev\C\ScanTool\datafile.h"
+  File "C:\Dev\C\ScanTool\custom_gui.h"
+  File "C:\Dev\C\ScanTool\custom_gui.c"
+  File "C:\Dev\C\ScanTool\codes.dat"
+  File "C:\Dev\C\ScanTool\about.h"
+  File "C:\Dev\C\ScanTool\ScanTool.dev"
+  
+  ; Shortcuts
+  !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
+  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\$(^Name) Source Code.lnk" "$INSTDIR\source\"
+  !insertmacro MUI_STARTMENU_WRITE_END
+SectionEnd
+
 Section -AdditionalIcons
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
-  WriteIniStr "$INSTDIR\${PRODUCT_NAME}.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
-  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\Website.lnk" "$INSTDIR\${PRODUCT_NAME}.url"
+  WriteIniStr "$SMPROGRAMS\$ICONS_GROUP\Website.url" "InternetShortcut" "URL" "${PRODUCT_WEB_SITE}"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\Uninstall $(^Name).lnk" "$INSTDIR\uninst.exe"
   !insertmacro MUI_STARTMENU_WRITE_END
 SectionEnd
@@ -91,6 +131,12 @@ Section -Post
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
 SectionEnd
 
+; Section descriptions
+!insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC01} ""
+  !insertmacro MUI_DESCRIPTION_TEXT ${SEC02} "Select this option to install C source files."
+!insertmacro MUI_FUNCTION_DESCRIPTION_END
+
 
 Function un.onUninstSuccess
   HideWindow
@@ -104,26 +150,25 @@ FunctionEnd
 
 Section Uninstall
   !insertmacro MUI_STARTMENU_GETFOLDER "Application" $ICONS_GROUP
-  Delete "$INSTDIR\${PRODUCT_NAME}.url"
-  Delete "$INSTDIR\uninst.exe"
-  Delete "$INSTDIR\gpl.txt"
-  Delete "$INSTDIR\readme.txt"
-  Delete "$INSTDIR\codes.dat"
-  Delete "$INSTDIR\scantool.dat"
-  Delete "$INSTDIR\ScanTool.exe"
+  Delete "$INSTDIR\source\*.*"
+  Delete "$INSTDIR\*.*"
 
   Delete "$SMPROGRAMS\$ICONS_GROUP\Uninstall $(^Name).lnk"
+  Delete "$SMPROGRAMS\$ICONS_GROUP\$(^Name) Source Code.lnk"
   Delete "$SMPROGRAMS\$ICONS_GROUP\$(^Name) Read Me.lnk"
   Delete "$SMPROGRAMS\$ICONS_GROUP\$(^Name).lnk"
+  Delete "$SMPROGRAMS\$ICONS_GROUP\$(^Name).pif"
   Delete "$DESKTOP\$(^Name).lnk"
+  Delete "$DESKTOP\$(^Name).pif"
 
   ClearErrors
   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ScanTool.net for Windows" "UninstallString"
   IfErrors 0 skipDeletion
-  Delete "$SMPROGRAMS\$ICONS_GROUP\Website.lnk"
+  Delete "$SMPROGRAMS\$ICONS_GROUP\Website.url"
   RMDir "$SMPROGRAMS\$ICONS_GROUP"
   skipDeletion:
 
+  RMDir "$INSTDIR\source"
   RMDir "$INSTDIR"
 
   DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
