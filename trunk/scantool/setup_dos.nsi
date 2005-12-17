@@ -27,7 +27,7 @@
 ; Start menu page
 var ICONS_GROUP
 !define MUI_STARTMENUPAGE_NODISABLE
-!define MUI_STARTMENUPAGE_DEFAULTFOLDER "ScanTool.net"
+!define MUI_STARTMENUPAGE_DEFAULTFOLDER "OBD-II Software\ScanTool.net"
 !define MUI_STARTMENUPAGE_REGISTRY_ROOT "${PRODUCT_UNINST_ROOT_KEY}"
 !define MUI_STARTMENUPAGE_REGISTRY_KEY "${PRODUCT_UNINST_KEY}"
 !define MUI_STARTMENUPAGE_REGISTRY_VALUENAME "${PRODUCT_STARTMENU_REGVAL}"
@@ -67,7 +67,7 @@ Section "" SEC01
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
   CreateDirectory "$SMPROGRAMS\$ICONS_GROUP"
   CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\$(^Name).lnk" "$INSTDIR\ScanTool.exe"
-  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\Read Me.lnk" "$INSTDIR\readme.txt"
+  CreateShortCut "$SMPROGRAMS\$ICONS_GROUP\$(^Name) Read Me.lnk" "$INSTDIR\readme.txt"
   CreateShortCut "$DESKTOP\$(^Name).lnk" "$INSTDIR\ScanTool.exe"
   !insertmacro MUI_STARTMENU_WRITE_END
 SectionEnd
@@ -113,16 +113,16 @@ Section Uninstall
   Delete "$INSTDIR\ScanTool.exe"
 
   Delete "$SMPROGRAMS\$ICONS_GROUP\Uninstall $(^Name).lnk"
+  Delete "$SMPROGRAMS\$ICONS_GROUP\$(^Name) Read Me.lnk"
   Delete "$SMPROGRAMS\$ICONS_GROUP\$(^Name).lnk"
   Delete "$DESKTOP\$(^Name).lnk"
 
   ClearErrors
   ReadRegStr $0 HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\ScanTool.net for Windows" "UninstallString"
-  IfErrors 0 skip
+  IfErrors 0 skipDeletion
   Delete "$SMPROGRAMS\$ICONS_GROUP\Website.lnk"
-  Delete "$SMPROGRAMS\$ICONS_GROUP\Read Me.lnk"
   RMDir "$SMPROGRAMS\$ICONS_GROUP"
-  skip:
+  skipDeletion:
 
   RMDir "$INSTDIR"
 
