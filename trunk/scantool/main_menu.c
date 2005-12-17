@@ -29,12 +29,13 @@ static int options_proc(int msg, DIALOG *d, int c);
 static int about_proc(int msg, DIALOG *d, int c);
 static int exit_proc(int msg, DIALOG *d, int c);
 static int button_desc_proc(int msg, DIALOG *d, int c);
-static int unimplemented_proc(int msg, DIALOG *d, int c);
 static int reset_proc(int msg, DIALOG *d, int c);
 
 static char button_description[256];
 static char current_description[256];
 static char welcome_message[256];
+
+static char reset_status_msg[64];
 
 static DIALOG main_dialog[] =
 {
@@ -54,26 +55,13 @@ static DIALOG main_dialog[] =
    { NULL,              0,   0,   0,   0,   0,           0,       0,    0,      0,   0,   NULL,                NULL, NULL }
 };
 
-static DIALOG tests_dialog[] =
-{
-   /* (proc)             (x)  (y)  (w)  (h)  (fg)     (bg)           (key) (flags) (d1) (d2) (dp)                           (dp2) (dp3) */
-   { d_shadow_box_proc,  0,   0,   248, 248, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,                          NULL, NULL },
-   { d_shadow_box_proc,  0,   0,   248, 24,  C_BLACK, C_DARK_GRAY,   0,    0,      0,   0,   NULL,                          NULL, NULL },
-   { caption_proc,       124, 2,   121, 19,  C_WHITE, C_TRANSP,      0,    0,      0,   0,   "Test Results",                NULL, NULL },
-   { unimplemented_proc, 16,  40,  216, 40,  C_BLACK, C_GREEN,       'o',  D_EXIT, 0,   0,   "&Oxygen Sensors",             NULL, NULL },
-   { unimplemented_proc, 16,  88,  216, 40,  C_BLACK, C_DARK_YELLOW, 't',  D_EXIT, 0,   0,   "Con&tinuously Monitored",     NULL, NULL },
-   { unimplemented_proc, 16,  136, 216, 40,  C_BLACK, C_PURPLE,      'n',  D_EXIT, 0,   0,   "&Non-Continuously Monitored", NULL, NULL },
-   { d_button_proc,      80,  192, 88,  40,  C_BLACK, C_WHITE,       'c',  D_EXIT, 0,   0,   "&Close",                      NULL, NULL },
-   { NULL,               0,   0,   0,   0,   0,       0,             0,    0,      0,   0,   NULL,                          NULL, NULL }
-};
-
 static DIALOG reset_chip_dialog[] =
 {
-   /* (proc)            (x)  (y) (w)  (h) (fg)     (bg)          (key) (flags) (d1) (d2) (dp)                               (dp2) (dp3) */
-   { d_shadow_box_proc, 0,   0,  300, 64, C_BLACK, C_LIGHT_GRAY, 0,    0,      0,   0,   NULL,                              NULL, NULL },
-   { caption_proc,      150, 24, 138, 16, C_BLACK, C_TRANSP,     0,    0,      0,   0,   "Resetting hardware interface...", NULL, NULL },
-   { reset_proc,        0,   0,  0,   0,  0,       0,            0,    0,      0,   0,   NULL,                              NULL, NULL },
-   { NULL,              0,   0,  0,   0,  0,       0,            0,    0,      0,   0,   NULL,                              NULL, NULL }
+   /* (proc)            (x)  (y) (w)  (h) (fg)     (bg)          (key) (flags) (d1) (d2) (dp)              (dp2) (dp3) */
+   { d_shadow_box_proc, 0,   0,  300, 64, C_BLACK, C_LIGHT_GRAY, 0,    0,      0,   0,   NULL,             NULL, NULL },
+   { caption_proc,      150, 24, 138, 16, C_BLACK, C_TRANSP,     0,    0,      0,   0,   reset_status_msg, NULL, NULL },
+   { reset_proc,        0,   0,  0,   0,  0,       0,            0,    0,      0,   0,   NULL,             NULL, NULL },
+   { NULL,              0,   0,  0,   0,  0,       0,            0,    0,      0,   0,   NULL,             NULL, NULL }
 };
 
 
@@ -128,15 +116,20 @@ void reset_chip()
 #define RESET_START        0
 #define RESET_WAIT_RX      1
 #define RESET_ECU_TIMEOUT  2
+#define RESET_WAIT_0100    3
 
 int reset_proc(int msg, DIALOG *d, int c)
 {
    static int state = RESET_START;
-   char temp_buf[128];
+   static int device = 0;
+   static char response[256];
+   char buf[128];
+   int status;
    
    switch (msg)
    {
       case MSG_START:
+         strcpy(reset_status_msg, "Resetting hardware interface...");
          state = RESET_START;
          break;
    
@@ -147,22 +140,37 @@ int reset_proc(int msg, DIALOG *d, int c)
                if (serial_timer_running) // and if serial timer is running
                {
                   // wait until we either get a prompt or the timer times out
-                  while ((read_comport(temp_buf) != PROMPT) && !serial_time_out)
+                  while ((read_comport(buf) != PROMPT) && !serial_time_out)
                      ;
                }
                send_command("atz"); // reset the chip
                start_serial_timer(ATZ_TIMEOUT);  // start serial timer
+               response[0] = 0;
                state = RESET_WAIT_RX;
                break;
 
             case RESET_WAIT_RX:
-               if ((read_comport(temp_buf) == PROMPT))  // if we got the prompt
+               status = read_comport(buf);  // read comport
+
+               if(status == DATA) // if new data detected in com port buffer
+                  strcat(response, buf); // append contents of buf to response
+               else if(status == PROMPT) // if '>' detected
                {
-                  start_serial_timer(ECU_TIMEOUT);
-                  state = RESET_ECU_TIMEOUT;
+                  strcat(response, buf);
+                  device = process_response("atz", response);
+                  if (device == INTERFACE_ELM323 || device == INTERFACE_ELM327)
+                  {
+                     start_serial_timer(ECU_TIMEOUT);
+                     strcpy(reset_status_msg, "Waiting for ECU timeout...");
+                     state = RESET_ECU_TIMEOUT;
+                     return D_REDRAW;
+                  }
+                  else
+                     return D_CLOSE;
                }
                else if (serial_time_out) // if the timer timed out
                {
+                  alert("Interface was not found", NULL, NULL, "OK", NULL, 0, 0);
                   stop_serial_timer(); // stop the timer
                   return D_CLOSE; // close dialog
                }
@@ -172,12 +180,48 @@ int reset_proc(int msg, DIALOG *d, int c)
                if (serial_time_out) // if the timer timed out
                {
                   stop_serial_timer(); // stop the timer
-                  return D_CLOSE; // close dialog
+                  if (device == INTERFACE_ELM327)
+                  {
+                     send_command("0100");
+                     start_serial_timer(OBD_REQUEST_TIMEOUT);  // start serial timer
+                     response[0] = 0;
+                     strcpy(reset_status_msg, "Detecting OBD protocol...");
+                     state = RESET_WAIT_0100;
+                     return D_REDRAW;
+                  }
+                  else
+                     return D_CLOSE; // close dialog
+               }
+               break;
+               
+            case RESET_WAIT_0100:
+               status = read_comport(buf);
+
+               if(status == DATA) // if new data detected in com port buffer
+                  strcat(response, buf); // append contents of buf to response
+               else if (status == PROMPT)  // if we got the prompt
+               {
+                  stop_serial_timer();
+                  strcat(response, buf);
+                  status = process_response("0100", response);
+
+                  if (status == ERR_NO_DATA)
+                     alert("Protocol could not be detected.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "OK", NULL, 0, 0);
+                  else if (status != HEX_DATA)
+                     alert("Communication error", NULL, NULL, "OK", NULL, 0, 0);
+                     
+                  return D_CLOSE;
+               }
+               else if (serial_time_out) // if the timer timed out
+               {
+                  stop_serial_timer(); // stop the timer
+                  alert("Connection with interface was lost", NULL, NULL, "OK", NULL, 0, 0);
+                  return D_CLOSE;
                }
          }
          break;
    }
-   
+
    return D_O_K;
 }
 
@@ -259,22 +303,14 @@ int tests_proc(int msg, DIALOG *d, int c)
 {
    int ret;
 
-   switch (msg)
-   {
-      case MSG_START:
-         centre_dialog(tests_dialog);
-         break;
-         
-      case MSG_GOTMOUSE: // if we got mouse, display description
-         sprintf(button_description, "Display mode 5, 6, & 7 test results (not implemented in this version).");
-         break;
-   }
+   if (msg == MSG_GOTMOUSE) // if we got mouse, display description
+      sprintf(button_description, "Display mode 5, 6, & 7 test results (not implemented in this version).");
 
    ret = nostretch_icon_proc(msg, d, c); // call the parent object
 
    if (ret == D_CLOSE)           // trap the close value
    {  
-      popup_dialog(tests_dialog, -1);
+      alert("This feature is not implemented", " in this version", NULL, "OK", NULL, 0, 0);
       return D_REDRAWME;
    }
    return ret;  // return
@@ -373,19 +409,4 @@ int button_desc_proc(int msg, DIALOG *d, int c)
    }
 
    return ret;  // return
-}
-
-
-int unimplemented_proc(int msg, DIALOG *d, int c)
-{
-   int ret;
-   ret = d_button_proc(msg, d, c);
-   
-   if (ret == D_CLOSE)
-   {
-      alert("This feature is to be implemented", " in future versions", NULL, "OK", NULL, 0, 0);
-      return D_REDRAWME;
-   }
-   
-   return ret;
 }
