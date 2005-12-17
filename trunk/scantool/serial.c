@@ -51,7 +51,7 @@ void serial_module_init()
    /* all variables and code used inside interrupt handlers must be locked */
    LOCK_VARIABLE(serial_time_out);
    LOCK_FUNCTION(serial_time_out_handler);
-   _add_exit_func(serial_module_shutdown);
+   _add_exit_func(serial_module_shutdown, "serial_module_shutdown");
 }
 
 
@@ -357,12 +357,94 @@ int process_response(const char *cmd_sent, char *msg_received)
       return BUS_ERROR;
    if (strcmp(msg_received, "BUSINIT:ERROR") == 0 ||
        strcmp(msg_received, "BUSINIT:...ERROR") == 0 ||
+       strcmp(msg_received, "CANERROR") == 0 ||
        strcmp(msg_received, "UNABLETOCONNECT") == 0)
       return ERR_NO_DATA;
-   if (strcmp(msg_received, "?") == 0 ||
-       strcmp(msg_received, "BUS INIT:") == 0 ||
+   if (strcmp(msg_received, "BUFFERFULL") == 0)
+      return BUFFER_FULL;
+   if (strcmp(msg_received, "BUS INIT:") == 0 ||
        strcmp(msg_received, "BUS INIT:...") == 0)
       return SERIAL_ERROR;
+   if (strcmp(msg_received, "?") == 0)
+      return UNKNOWN_CMD;
+   if (strncmp(msg_received, "ELM320", 6) == 0)
+      return INTERFACE_ELM320;
+   if (strncmp(msg_received, "ELM322", 6) == 0)
+      return INTERFACE_ELM322;
+   if (strncmp(msg_received, "ELM323", 6) == 0)
+      return INTERFACE_ELM323;
+   if (strncmp(msg_received, "ELM327", 6) == 0)
+      return INTERFACE_ELM327;
 
    return RUBBISH;
+}
+
+
+void display_error_message(int error)
+{
+   switch (error)
+   {
+      case BUS_ERROR:
+         alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, "OK", NULL, 0, 0);
+         break;
+
+      case BUS_BUSY:
+         alert("OBD Bus Busy. Try again.", NULL, NULL, "OK", NULL, 0, 0);
+         break;
+         
+      case DATA_ERROR:
+      case DATA_ERROR2:
+         alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable and try again.", "OK", NULL, 0, 0);
+         break;
+         
+      case BUFFER_FULL:
+         alert("Hardware data buffer overflow.", NULL, NULL, "OK", NULL, 0, 0);
+         break;
+
+      case SERIAL_ERROR:
+      case UNKNOWN_CMD:
+      case RUBBISH:
+         alert("Serial Link Error: please check connection", "between computer and OBD interface.", NULL, "OK", NULL, 0, 0);
+         break;
+   }
+}
+
+
+const char *get_protocol_string(int interface_type, int protocol_id)
+{
+   switch (interface_type)
+   {
+      case INTERFACE_ELM320:
+         return "SAE J1850 PWM (41.6 kBit/s)";
+      case INTERFACE_ELM322:
+         return "SAE J1850 VPW (10.4 kBit/s)";
+      case INTERFACE_ELM323:
+         return "ISO 9141-2 / ISO 14230-4 KWP2000";
+      case INTERFACE_ELM327:
+         switch (protocol_id)
+         {
+            case 0:
+               return "N/A";
+            case 1:
+               return "SAE J1850 PWM (41.6 kBit/s)";
+            case 2:
+               return "SAE J1850 VPW (10.4 kBit/s)";
+            case 3:
+               return "ISO 9141-2";
+            case 4:
+               return "ISO 14230-4 KWP2000 (5-baud init)";
+            case 5:
+               return "ISO 14230-4 KWP2000 (fast init)";
+            case 6:
+               return "ISO 15765-4 CAN (11-bit ID, 500 kBit/s)";
+            case 7:
+               return "ISO 15765-4 CAN (29-bit ID, 500 kBit/s)";
+            case 8:
+               return "ISO 15765-4 CAN (11-bit ID, 250 kBit/s)";
+            case 9:
+               return "ISO 15765-4 CAN (29-bit ID, 250 kBit/s)";
+         }
+   }
+   
+   return "unknown";
 }

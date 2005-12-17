@@ -40,17 +40,23 @@
 #define USER_IGNORED   2
 
 //process_response return values
-#define HEX_DATA       0
-#define BUS_BUSY       1
-#define BUS_ERROR      2
-#define DATA_ERROR     3
-#define DATA_ERROR2    4
-#define ERR_NO_DATA    5
-#define SERIAL_ERROR   6
-#define RUBBISH        7
+#define HEX_DATA           0
+#define BUS_BUSY           1
+#define BUS_ERROR          2
+#define DATA_ERROR         3
+#define DATA_ERROR2        4
+#define ERR_NO_DATA        5
+#define BUFFER_FULL        6
+#define SERIAL_ERROR       7
+#define UNKNOWN_CMD        8
+#define INTERFACE_ELM320   9
+#define INTERFACE_ELM322   10
+#define INTERFACE_ELM323   11
+#define INTERFACE_ELM327   12
+#define RUBBISH            13
 
 // timeouts
-#define OBD_REQUEST_TIMEOUT   7100
+#define OBD_REQUEST_TIMEOUT   8000
 #define ATZ_TIMEOUT           1200
 #define AT_TIMEOUT            130
 #define ECU_TIMEOUT           5000
@@ -66,6 +72,8 @@ void start_serial_timer(int delay);
 void stop_serial_timer();
 int process_response(const char *cmd_sent, char *msg_received);
 int find_valid_response(char *buf, char *response, const char *mode, char **stop);
+const char *get_protocol_string(int interface_type, int protocol_id);
+void display_error_message(int error);
 
 // variables
 volatile int serial_time_out;
