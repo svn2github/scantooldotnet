@@ -1,6 +1,5 @@
 #include <string.h>
 #include "globals.h"
-#include "serial.h"
 #include "error_handlers.h"
 
 
