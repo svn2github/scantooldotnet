@@ -24,6 +24,7 @@
 #define NUM_OF_RETRIES   3
 
 static char unknown_code_description[] = "Manufacturer-specific code.  Please refer to your vehicle's service manual for more information";
+static char unknown_pending_code_description[] = "[Pending]\nManufacturer-specific code.  Please refer to your vehicle's service manual for more information";
 
 typedef struct TROUBLE_CODE
 {
@@ -193,7 +194,12 @@ int tr_description_proc(int msg, DIALOG *d, int c)   // procedure which displays
          if (num_of_codes == 0)
             d->dp = empty_string;
          else if (!(d->dp = get_trouble_code(current_code_index)->description))
-            d->dp = unknown_code_description;
+         {
+            if (get_trouble_code(current_code_index)->pending)
+               d->dp = unknown_pending_code_description;
+            else
+               d->dp = unknown_code_description;
+         }
          return D_REDRAWME;
    }
       
