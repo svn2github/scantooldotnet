@@ -65,7 +65,7 @@ static void fuel_pressure_formula(int data, char *buf);
 static void secondary_air_status_formula(int data, char *buf);
 static void pto_status_formula(int data, char *buf);
 static void o2_sensor_formula(int data, char *buf);
-static void obd_requirements_formula(int data, char *buf);
+void obd_requirements_formula(int data, char *buf);
 // added 1/2/2003
 static void engine_run_time_formula(int data, char *buf);
 static void mil_distance_formula(int data, char *buf);
@@ -192,52 +192,52 @@ static SENSOR sensors[] =
 
 DIALOG sensor_dialog[] =
 {
-   /* (proc)                 (x)  (y)  (w)  (h) (fg)     (bg)           (key) (flags) (d1) (d2) (dp)             (dp2) (dp3) */
-   { d_clear_proc,           0,   0,   0,   0,  0,       C_WHITE,       0,    0,      0,   0,   NULL,            NULL, NULL },
-   { page_updn_handler_proc, 0,   0,   0,   0,  0,       0,             0,    0,      0,   0,   0,               NULL, NULL },
-   { d_shadow_box_proc,      40,  20,  560, 56, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { d_rtext_proc,           50,  25,  96,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Port Status:",  NULL, NULL },
-   { status_proc,            178, 25,  310, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { reset_chip_proc,        490, 28,  100, 40, C_BLACK, C_GREEN,       'r',  D_EXIT, 0,   0,   "&Reset Chip",   NULL, NULL },
-   { d_rtext_proc,           50,  51,  96,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Refresh rate:", NULL, NULL },
-   { inst_refresh_rate_proc, 160, 51,  175, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { avg_refresh_rate_proc,  335, 51,  153, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  87,  560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  91,  45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 0,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  94,  504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  123, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  127, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 1,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  130, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      1,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  159, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  163, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 2,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  166, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      2,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  195, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  199, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 3,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  202, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      3,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  231, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  235, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 4,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  238, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      4,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  267, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  271, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 5,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  274, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      5,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  303, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  307, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 6,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  310, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      6,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  339, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  343, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 7,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  346, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      7,   0,   NULL,            NULL, NULL },
-   { d_box_proc,             40,  375, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { toggle_proc,            45,  379, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 8,   0,   NULL,            NULL, NULL },
-   { sensor_proc,            95,  382, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      8,   0,   NULL,            NULL, NULL },
-   { toggle_all_proc,        40,  420, 100, 40, C_BLACK, C_DARK_YELLOW, 'a',  D_EXIT, 0,   0,   "&All ON",       NULL, NULL },
-   { options_proc,           150, 420, 100, 40, C_BLACK, C_GREEN,       'o',  D_EXIT, 0,   0,   "&Options",      NULL, NULL },
-   { d_shadow_box_proc,      260, 420, 230, 40, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { d_button_proc,          500, 420, 100, 40, C_BLACK, C_DARK_YELLOW, 'm',  D_EXIT, 0,   0,   "&Main Menu",    NULL, NULL },
-   { st_ctext_proc,          300, 422, 38,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Page",          NULL, NULL },
-   { page_flipper_proc,      340, 425, 75,  30, C_BLACK, C_DARK_YELLOW, 'p',  D_EXIT, -1,  0,   "&Previous",     NULL, NULL },
-   { page_flipper_proc,      425, 425, 55,  30, C_BLACK, C_GREEN,       'x',  D_EXIT, 1,   0,   "Ne&xt",         NULL, NULL },
-   { page_number_proc,       300, 440, 36,  18, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,            NULL, NULL },
-   { NULL,                   0,   0,   0,   0,  0,       0,             0,    0,      0,   0,   NULL,            NULL, NULL }
+   /* (proc)                 (x)  (y)  (w)  (h) (fg)     (bg)           (key) (flags) (d1) (d2) (dp)                (dp2) (dp3) */
+   { d_clear_proc,           0,   0,   0,   0,  0,       C_WHITE,       0,    0,      0,   0,   NULL,               NULL, NULL },
+   { page_updn_handler_proc, 0,   0,   0,   0,  0,       0,             0,    0,      0,   0,   0,                  NULL, NULL },
+   { d_shadow_box_proc,      40,  20,  560, 56, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { d_rtext_proc,           50,  25,  96,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Port Status:",     NULL, NULL },
+   { status_proc,            172, 25,  288, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { reset_chip_proc,        464, 28,  126, 40, C_BLACK, C_GREEN,       'r',  D_EXIT, 0,   0,   "&Reset Interface", NULL, NULL },
+   { d_rtext_proc,           50,  51,  96,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Refresh rate:",    NULL, NULL },
+   { inst_refresh_rate_proc, 154, 51,  174, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { avg_refresh_rate_proc,  328, 51,  132, 20, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  87,  560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  91,  45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 0,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  94,  504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  123, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  127, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 1,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  130, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      1,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  159, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  163, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 2,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  166, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      2,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  195, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  199, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 3,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  202, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      3,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  231, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  235, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 4,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  238, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      4,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  267, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  271, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 5,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  274, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      5,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  303, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  307, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 6,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  310, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      6,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  339, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  343, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 7,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  346, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      7,   0,   NULL,               NULL, NULL },
+   { d_box_proc,             40,  375, 560, 32, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { toggle_proc,            45,  379, 45,  24, C_BLACK, C_WHITE,       0,    D_EXIT, 8,   0,   NULL,               NULL, NULL },
+   { sensor_proc,            95,  382, 504, 24, C_BLACK, C_LIGHT_GRAY,  0,    0,      8,   0,   NULL,               NULL, NULL },
+   { toggle_all_proc,        40,  420, 100, 40, C_BLACK, C_DARK_YELLOW, 'a',  D_EXIT, 0,   0,   "&All ON",          NULL, NULL },
+   { options_proc,           150, 420, 100, 40, C_BLACK, C_GREEN,       'o',  D_EXIT, 0,   0,   "&Options",         NULL, NULL },
+   { d_shadow_box_proc,      260, 420, 230, 40, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { d_button_proc,          500, 420, 100, 40, C_BLACK, C_DARK_YELLOW, 'm',  D_EXIT, 0,   0,   "&Main Menu",       NULL, NULL },
+   { st_ctext_proc,          300, 422, 38,  20, C_BLACK, C_TRANSP,      0,    0,      0,   0,   "Page",             NULL, NULL },
+   { page_flipper_proc,      340, 425, 75,  30, C_BLACK, C_DARK_YELLOW, 'p',  D_EXIT, -1,  0,   "&Previous",        NULL, NULL },
+   { page_flipper_proc,      425, 425, 55,  30, C_BLACK, C_GREEN,       'x',  D_EXIT, 1,   0,   "Ne&xt",            NULL, NULL },
+   { page_number_proc,       300, 440, 36,  18, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,               NULL, NULL },
+   { NULL,                   0,   0,   0,   0,  0,       0,             0,    0,      0,   0,   NULL,               NULL, NULL }
 };
 
 
@@ -767,9 +767,9 @@ int status_proc(int msg, DIALOG *d, int c)
             if (comport.status == READY)
             {
                if (device_connected)
-                  sprintf(d->dp, " COM%i is ready (device connected)", comport.number + 1);
+                  sprintf(d->dp, " COM%i ready (device connected)", comport.number + 1);
                else
-                  sprintf(d->dp, " COM%i is ready (device not responding)", comport.number + 1);
+                  sprintf(d->dp, " COM%i ready (device not responding)", comport.number + 1);
             }
             else
                sprintf(d->dp, " COM%i could not be opened", comport.number + 1);
@@ -965,7 +965,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
                      }
                      else if(response_type == BUS_ERROR) // if we received "BUS ERROR"
                      {
-                        alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, "OK", NULL, 0, 0);
+                        display_error_message(BUS_ERROR);
                         retry_attempts = NUM_OF_RETRIES;
                      }
                      // if we received "BUS BUSY", "DATA ERROR", "<DATA ERROR", SERIAL_ERROR, or RUBBISH,
@@ -979,18 +979,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
                         }
                         else
                         {
-                           switch (response_type)
-                           {
-                              case BUS_BUSY:
-                                 alert("OBD Bus Busy: could not read sensor", NULL, NULL, "OK", NULL, 0, 0);
-                                 break;
-                              case DATA_ERROR: case DATA_ERROR2:
-                                 alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable.", "OK", NULL, 0, 0);
-                                 break;
-                              case SERIAL_ERROR: case RUBBISH:
-                                 alert("Serial Link Error: please check connection", "between computer and OBD interface.", NULL, "OK", NULL, 0, 0);
-                                 break;
-                           }
+                           display_error_message(response_type);
                            retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
                         }
                      } // end of BUS_BUSY, DATA_ERROR, DATA_ERROR2, ERIAL_ERROR, and RUBBISH
