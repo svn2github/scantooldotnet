@@ -13,7 +13,8 @@
 
 #define NUM_OF_CODES   0
 #define READ_CODES     1
-#define CLEAR_CODES    2
+#define READ_PENDING   2
+#define CLEAR_CODES    3
 
 #define FIELD_DELIMITER     '\t'
 #define RECORD_DELIMITER    0xA
@@ -26,9 +27,10 @@ static char unknown_code_description[] = "Manufacturer-specific code.  Please re
 
 typedef struct TROUBLE_CODE
 {
-   char code[6];
+   char code[7];
    char *description;
    char *solution;
+   int pending;
    struct TROUBLE_CODE *next;
 } TROUBLE_CODE;
 
@@ -39,7 +41,7 @@ static int current_code_index;
 static int simulate = FALSE;
 static int mil_is_on; // MIL is ON or OFF
 
-static TROUBLE_CODE trouble_codes[] = {{"", NULL, NULL, NULL}};
+static TROUBLE_CODE trouble_codes[] = {{"", NULL, NULL, FALSE, NULL}};
 
 static TROUBLE_CODE *add_trouble_code(const TROUBLE_CODE *);
 static TROUBLE_CODE *get_trouble_code(int index);
@@ -53,7 +55,7 @@ static int mil_text_proc(int msg, DIALOG *d, int c);
 static int simulate_proc(int msg, DIALOG *d, int c);
 static int num_of_codes_proc(int msg, DIALOG *d, int c);
 static int code_list_proc(int msg, DIALOG *d, int c);
-static char* code_list_getter(int index, int *list_size);
+static char *code_list_getter(int index, int *list_size);
 static int read_tr_codes_proc(int msg, DIALOG *d, int c);
 static int clear_codes_proc(int msg, DIALOG *d, int c);
 static int tr_description_proc(int msg, DIALOG *d, int c);
@@ -63,8 +65,9 @@ static int current_code_proc(int msg, DIALOG *d, int c);
 // function definitions:
 static void trouble_codes_simulator(int show);
 static int handle_num_of_codes(char *);
-static int handle_read_codes(char *);
-static void swap_strings(char *, char *);
+static int handle_read_codes(char *, int);
+static void populate_trouble_codes_list();
+static void swap_codes(TROUBLE_CODE *, TROUBLE_CODE *);
 static void handle_errors(int error, int operation);
 static PACKFILE *file_handle(char code_letter);
 
@@ -79,7 +82,7 @@ static DIALOG read_codes_dialog[] =
    { code_list_proc,      25,  96,  112, 208, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   code_list_getter,                      NULL, NULL },
    { d_box_proc,          25,  311, 112, 64,  C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { num_of_codes_proc,   81,  319, 54,  24,  C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
-   { st_ctext_proc,       80,  351, 55,  20,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "DTCs Found",                          NULL, NULL },
+   { st_ctext_proc,       80,  351, 55,  20,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "DTCs",                                NULL, NULL },
    { d_box_proc,          25,  383, 112, 72,  C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { mil_status_proc,     56,  390, 50,  30,  0,       0,             0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { mil_text_proc,       81,  430, 54,  23,  C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
@@ -141,7 +144,9 @@ void trouble_codes_simulator(int show)
    {
       strcpy(buf, SIM_CODES_STRING);
       process_response(NULL, buf);
-      num_of_codes_reported = num_of_codes = handle_read_codes(buf);
+      clear_trouble_codes();
+      num_of_codes_reported = num_of_codes = handle_read_codes(buf, FALSE);
+      populate_trouble_codes_list();
       mil_is_on = TRUE;
    }
    else
@@ -490,40 +495,60 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                         {  // extract # of codes from vehicle_response and store in temp_num_of_codes
                            temp_num_of_codes = handle_num_of_codes(vehicle_response);
                         
-                           if (temp_num_of_codes > 0) // if there's at least one code,
-                           {
-                              send_command("03");   // request the codes themselves
-                              current_request = READ_CODES;  // we're reading codes now
-                              receiving_response = TRUE;     // and receiving response
-                              vehicle_response[0] = '\0';    // clear the buffer
-                              start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer...
-                           }
-                           else
-                           {
-                              num_of_codes_reported = num_of_codes = 0;
-                              broadcast_dialog_message(MSG_READY,0);
-                           }
+                           send_command("03");   // request the codes themselves
+                           current_request = READ_CODES;  // we're reading codes now
+                           receiving_response = TRUE;     // and receiving response
+                           vehicle_response[0] = '\0';    // clear the buffer
+                           start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer...
                         }
                      }
                      else if(current_request == READ_CODES) // if we are reading codes,
                      {
                         response_type = process_response("03", vehicle_response);
 
-                        if (response_type == ERR_NO_DATA)// vehicle didn't respond, check connection
+                        if (response_type == ERR_NO_DATA) // vehicle didn't respond, check connection
                         {
-                           verifying_connection = TRUE;
+                           if (temp_num_of_codes > 0)
+                              verifying_connection = TRUE;
                            num_of_codes = num_of_codes_reported = 0;
                         }
                         else if(response_type != HEX_DATA) // if we got an error,
-                           handle_errors(response_type, NUM_OF_CODES);
+                        {
+                           handle_errors(response_type, READ_CODES);
+                           break;
+                        }
                         else  // if there were *no* errors,
                         {
                            num_of_codes_reported = temp_num_of_codes;
-                           // do some magic: convert chip response to actual code,
-                           // find DTC description and solution (if they exist) and store the actual number of codes read in num_of_codes
-                           num_of_codes = handle_read_codes(vehicle_response);
-                           broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
+                           clear_trouble_codes();
+                           num_of_codes = handle_read_codes(vehicle_response, FALSE);
                         }
+                        
+                        send_command("07");   // request the codes themselves
+                        current_request = READ_PENDING;  // we're reading codes now
+                        receiving_response = TRUE;     // and receiving response
+                        vehicle_response[0] = '\0';    // clear the buffer
+                        start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer...
+                     }
+                     else if(current_request == READ_PENDING) // if we are reading pending codes,
+                     {
+                        response_type = process_response("07", vehicle_response);
+
+                        if (response_type == ERR_NO_DATA) // vehicle didn't respond, check connection
+                        {
+                           if (num_of_codes == 0)
+                              alert("No Diagnostic Trouble Codes (DTCs) detected", NULL, NULL, "OK", NULL, 0, 0);
+                        }
+                        else if(response_type != HEX_DATA) // if we got an error,
+                        {
+                           handle_errors(response_type, READ_CODES);
+                           break;
+                        }
+                        else  // if there were *no* errors,
+                           num_of_codes += handle_read_codes(vehicle_response, TRUE);
+
+                        populate_trouble_codes_list();
+                        broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
                      }
                      else if(current_request == CLEAR_CODES)
                      {
@@ -547,6 +572,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
          if (serial_time_out)     // if request timed out,
          {
             receiving_response = FALSE;
+            clear_trouble_codes();
             broadcast_dialog_message(MSG_READY, 0);
             if (!simulate)
             {
@@ -676,22 +702,18 @@ int handle_num_of_codes(char *vehicle_response)
 }
 
 
-int handle_read_codes(char *vehicle_response)
+int handle_read_codes(char *vehicle_response, int pending)
 {
    char code_letter[] = "PCBU";
-   int i, j, min;
    int trouble_codes_count = 0;
-   char character;
+   int i, j;
+   char *mode;
    char response[48];
-   char temp_buf[1024];
-   TROUBLE_CODE *trouble_codes_list;
    TROUBLE_CODE temp_trouble_code;
-   PACKFILE *code_def_file;
    
-   if (get_number_of_codes() > 0)    // if the structure is not empty,
-      clear_trouble_codes();
+   mode = (pending) ? "47" : "43";
    
-   while(find_valid_response(response, vehicle_response, "43", &vehicle_response))
+   while(find_valid_response(response, vehicle_response, mode, &vehicle_response))
    {
       if ((strlen(response) - 2) % 4 != 0)
          continue;
@@ -710,11 +732,16 @@ int handle_read_codes(char *vehicle_response)
          // begin with position #1 (skip blank space), convert to hex, extract first two bits
          // use the result as an index into the code_letter array to get the corresponding code letter
          temp_trouble_code.code[0] = code_letter[strtol(temp_trouble_code.code + 1, 0, 16) >> 14];
-         
-         // get the 2nd digit of the trouble code ('1' in P1234)
-         // by right-shifting 12 bits (3 nibbles) and ANDing with 0011b
          temp_trouble_code.code[1] = (strtol(temp_trouble_code.code + 1, 0, 16) >> 12) & 0x03;
          temp_trouble_code.code[1] += 0x30; // convert to ASCII
+         if (pending)
+         {
+            temp_trouble_code.code[5] = '*';
+            temp_trouble_code.code[6] = 0;
+            temp_trouble_code.pending = TRUE;
+         }
+         else
+            temp_trouble_code.pending = FALSE;
          temp_trouble_code.description = NULL; // clear the corresponding description...
          temp_trouble_code.solution = NULL;  // ..and solution
          add_trouble_code(&temp_trouble_code);
@@ -722,15 +749,31 @@ int handle_read_codes(char *vehicle_response)
       }
    }  // end of while(), finished extracting codes
    
-   for (i = 0; i < trouble_codes_count; i++)    // sort codes in ascending order
+   return trouble_codes_count; // return the actual number of codes read
+}
+
+
+void populate_trouble_codes_list()
+{
+   char character;
+   int i, j, min;
+   char temp_buf[1024];
+   TROUBLE_CODE *trouble_codes_list;
+   int count = get_number_of_codes();
+   PACKFILE *code_def_file;
+
+   if (count == 0)
+      return;
+
+   for (i = 0; i < count; i++)    // sort codes in ascending order
    {
       min = i;
-      
-      for (j = i+1; j < trouble_codes_count; j++)
+
+      for (j = i+1; j < count; j++)
          if(strcmp(get_trouble_code(j)->code, get_trouble_code(min)->code) < 0)
             min = j;
-      
-      swap_strings(get_trouble_code(i)->code, get_trouble_code(min)->code);
+
+      swap_codes(get_trouble_code(i), get_trouble_code(min));
    }
    
    for (trouble_codes_list = trouble_codes->next; trouble_codes_list; trouble_codes_list = trouble_codes_list->next)   // search for descriptions and solutions
@@ -739,11 +782,11 @@ int handle_read_codes(char *vehicle_response)
       // if we reached EOF, or the file does not exist, go to the next DTC
       if ((code_def_file = file_handle(trouble_codes_list->code[0])) == NULL)
          continue;
-      
+
       while (TRUE)
       {
          j = 0;
-      
+
          // copy DTC from file to temp_buf
          while (((character = pack_getc(code_def_file)) != FIELD_DELIMITER) && (character != RECORD_DELIMITER) && (character != EOF))
          {
@@ -751,11 +794,11 @@ int handle_read_codes(char *vehicle_response)
             j++;
          }
          temp_buf[j] = '\0';
-         
+
          if (character == EOF) // reached end of file, break out of while()
             break;             // advance to next code
 
-         if (strcmp(trouble_codes_list->code, temp_buf) == 0) // if we found the code,
+         if (strncmp(trouble_codes_list->code, temp_buf, 5) == 0) // if we found the code,
          {
             if (character == RECORD_DELIMITER)  // reached end of record, no description or solution,
                break;                        // break out of while(), advance to next code
@@ -771,14 +814,20 @@ int handle_read_codes(char *vehicle_response)
             temp_buf[j] = '\0';  // terminate string
             if (j > 0)
             {
-               if (!(trouble_codes_list->description = (char *)malloc(sizeof(char)*(j+1))))
+               if (!(trouble_codes_list->description = (char *)malloc(sizeof(char)*(j + 1 + ((trouble_codes_list->pending) ? 10 : 0)))))
                {
-                  sprintf(temp_error_buf, "Could not allocate enough memory for trouble code description [%i]", trouble_codes_count);
+                  sprintf(temp_error_buf, "Could not allocate enough memory for trouble code description [%i]", count);
                   fatal_error(temp_error_buf);
                }
-               strcpy(trouble_codes_list->description, temp_buf);  // copy description from temp_buf
+               if (trouble_codes_list->pending)
+               {
+                  strcpy(trouble_codes_list->description, "[Pending]\n");
+                  strcpy(trouble_codes_list->description + 10, temp_buf);  // copy description from temp_buf
+               }
+               else
+                  strcpy(trouble_codes_list->description, temp_buf);  // copy description from temp_buf
             }
-         
+
             if (character == FIELD_DELIMITER)   // if we have solution,
             {
                j = 0;
@@ -794,7 +843,7 @@ int handle_read_codes(char *vehicle_response)
                {
                   if (!(trouble_codes_list->solution = (char *)malloc(sizeof(char)*(j+1))))
                   {
-                     sprintf(temp_error_buf, "Could not allocate enough memory for trouble code solution [%i]", trouble_codes_count);
+                     sprintf(temp_error_buf, "Could not allocate enough memory for trouble code solution [%i]", count);
                      fatal_error(temp_error_buf);
                   }
                   strcpy(trouble_codes_list->solution, temp_buf);  // copy solution from temp_buf
@@ -806,15 +855,13 @@ int handle_read_codes(char *vehicle_response)
          {
             // skip to next record
             while (((character = pack_getc(code_def_file)) != RECORD_DELIMITER) && (character != EOF));
-            
+
             if (character == EOF)
                break;   // break out of while(TRUE), advance to next code
-         }  
+         }
       } // end of while(TRUE)
    } // end of for() loop
    file_handle(0); // close the code definition file if it's still open
-   
-   return trouble_codes_count; // return the actual number of codes read
 }
 
 
@@ -824,11 +871,10 @@ void handle_errors(int error, int operation)
 
    if(error == BUS_ERROR) // if we received "BUS ERROR"
    {
-      alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, "OK", NULL, 0, 0);
+      display_error_message(BUS_ERROR);
       retry_attempts = NUM_OF_RETRIES;
       broadcast_dialog_message(MSG_READY, 0); // tell everyone that we're done
    }
-   
    else    // if we received "BUS BUSY", "DATA ERROR", "<DATA ERROR", SERIAL_ERROR, or RUBBISH,
    {       // try to re-send the request, do nothing if successful and alert user if failed:
       if(retry_attempts > 0) //
@@ -836,9 +882,12 @@ void handle_errors(int error, int operation)
          retry_attempts--;
          switch (operation)
          {
-            case READ_CODES: case NUM_OF_CODES:  // if we are currently reading codes,
+            case READ_CODES:
+            case READ_PENDING:
+            case NUM_OF_CODES:  // if we are currently reading codes,
                broadcast_dialog_message(MSG_READ_CODES, 0); // try reading again
                break;
+               
             case CLEAR_CODES:   // if we are currently clearing codes,
                broadcast_dialog_message(MSG_CLEAR_CODES, 0);  // try clearing again
                break;
@@ -846,18 +895,7 @@ void handle_errors(int error, int operation)
       }
       else
       {
-         switch (error)
-         {
-            case BUS_BUSY:
-               alert("Bus Busy: try reading the codes again", NULL, NULL, "OK", NULL, 0, 0);
-               break;
-            case DATA_ERROR: case DATA_ERROR2:
-               alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable and try again.", "OK", NULL, 0, 0);
-               break;
-            case SERIAL_ERROR: case RUBBISH:
-               alert("Serial Link Error: please check connection", "between computer and OBD interface.", NULL, "OK", NULL, 0, 0);
-               break;
-         }
+         display_error_message(error);
          retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
          broadcast_dialog_message(MSG_READY, 0); // tell everyone that we're done
       }
@@ -865,13 +903,17 @@ void handle_errors(int error, int operation)
 }
 
 
-void swap_strings(char *str1, char *str2)
+void swap_codes(TROUBLE_CODE *code1, TROUBLE_CODE *code2)
 {
-   char temp[256];
-
-   strcpy(temp, str1);
-   strcpy(str1, str2);
-   strcpy(str2, temp);
+   char temp_str[256];
+   int temp_int;
+   
+   temp_int = code1->pending;
+   strcpy(temp_str, code1->code);
+   code1->pending = code2->pending;
+   strcpy(code1->code, code2->code);
+   code2->pending = temp_int;
+   strcpy(code2->code, temp_str);
 }
 
 
@@ -893,12 +935,14 @@ TROUBLE_CODE *add_trouble_code(const TROUBLE_CODE * init_code)
       strcpy(trouble_code->next->code, init_code->code);
       trouble_code->next->description = init_code->description;
       trouble_code->next->solution = init_code->solution;
+      trouble_code->next->pending = init_code->pending;
    }
    else
    {
       trouble_code->next->code[0] = '\0';
       trouble_code->next->description = NULL;
       trouble_code->next->solution = NULL;
+      trouble_code->next->solution = FALSE;
    }
    trouble_code->next->next = NULL;
 
