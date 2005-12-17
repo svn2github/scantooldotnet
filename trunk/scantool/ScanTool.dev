@@ -1,7 +1,7 @@
 [Project]
 FileName=ScanTool.dev
 Name=ScanTool
-UnitCount=23
+UnitCount=24
 Icon=
 ObjFile=
 Type=0
@@ -272,6 +272,15 @@ AutoIncBuildNr=0
 
 [Unit23]
 FileName=readme.txt
+Folder=Misc Files
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit24]
+FileName=makefile
 Folder=Misc Files
 Compile=0
 Link=0
