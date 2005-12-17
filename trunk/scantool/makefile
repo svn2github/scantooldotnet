@@ -59,7 +59,7 @@ veryclean: clean
 scantool.res: scantool.rc scantool.ico
 	windres -O coff -o scantool.res -i scantool.rc
 
-main.o: main.c globals.h main_menu.h error_handlers.h options.h serial.h
+main.o: main.c globals.h main_menu.h error_handlers.h options.h serial.h version.h
 	$(CC) $(CFLAGS) -c main.c
 
 main_menu.o: main_menu.c globals.h about.h trouble_code_reader.h sensors.h options.h serial.h custom_gui.h main_menu.h
@@ -71,7 +71,7 @@ serial.o: serial.c globals.h serial.h
 options.o: options.c globals.h custom_gui.h serial.h options.h
 	$(CC) $(CFLAGS) -c options.c
 
-sensors.o: sensors.c globals.h serial.h options.h error_handlers.h sensors.h
+sensors.o: sensors.c globals.h serial.h options.h error_handlers.h sensors.h custom_gui.h
 	$(CC) $(CFLAGS) -c sensors.c
 
 trouble_code_reader.o: trouble_code_reader.c globals.h serial.h options.h custom_gui.h error_handlers.h trouble_code_reader.h
@@ -80,8 +80,8 @@ trouble_code_reader.o: trouble_code_reader.c globals.h serial.h options.h custom
 custom_gui.o: custom_gui.c globals.h custom_gui.h
 	$(CC) $(CFLAGS) -c custom_gui.c
 
-error_handlers.o: error_handlers.c globals.h serial.h error_handlers.h
+error_handlers.o: error_handlers.c globals.h error_handlers.h
 	$(CC) $(CFLAGS) -c error_handlers.c
 
-about.o: about.c globals.h custom_gui.h about.h
+about.o: about.c globals.h custom_gui.h serial.h sensors.h version.h about.h
 	$(CC) $(CFLAGS) -c about.c
