@@ -19,23 +19,22 @@ more details.
 ============ Introduction ============
 ======================================
 
-ScanTool.net OBD-II Software for ElmScan (Windows version) is free
-software that allows you to use your computer and an inexpensive 
-hardware interface to read information from your car's computer.  
-Version 1.10 allows you to read trouble codes and see their
-descriptions, clear the codes and turn off the "Check Engine" light, 
-and display real-time sensor data such as RPM, Engine Load, Vehicle 
-Speed, Coolant Temperature, and Timing Advance.
+ScanTool.net OBD-II Software for ElmScan is free software that allows you to 
+use your computer and an inexpensive hardware interface to read information 
+from your car's computer.  Version 1.10 allows you to read trouble codes and 
+see their descriptions, clear the codes and turn off the "Check Engine" light, 
+and display real-time sensor data such as RPM, Engine Load, Vehicle Speed, 
+Coolant Temperature, and Timing Advance.
 
 For more information about the ElmScan OBD-II interface, please visit 
-our website located at http://www.ScanTool.net
+our website, located at http://www.ScanTool.net.
 
 ======================================
 ===== Minimum System Requirements ====
 ======================================
 
 Windows:
-   - 486DX 25Mhz Processor
+   - 486DX 25Mhz Processor or better
    - 4Mb RAM
    - Windows 95 or higher
    - DirectX 7 or newer
@@ -43,7 +42,7 @@ Windows:
    - Serial port
 
 DOS:
-   - 386SX 10Mhz Processor or higher
+   - 386SX 10Mhz Processor or better
    - 1Mb RAM
    - DOS v3.0
    - 640x480 display
