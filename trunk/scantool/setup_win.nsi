@@ -2,7 +2,7 @@
 
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "ScanTool.net for Windows"
-!define PRODUCT_VERSION "v1.10"
+!define PRODUCT_VERSION "v1.11"
 !define PRODUCT_PUBLISHER "ScanTool.net, LLC"
 !define PRODUCT_WEB_SITE "http://www.scantool.net"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\${PRODUCT_NAME}"
@@ -50,7 +50,7 @@ var ICONS_GROUP
 ; MUI end ------
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "scantool_net110win.exe"
+OutFile "scantool_net111win.exe"
 InstallDir "$PROGRAMFILES\ScanTool.net_win"
 InstallDirRegKey HKLM "${PRODUCT_DIR_REGKEY}" ""
 ShowInstDetails show
