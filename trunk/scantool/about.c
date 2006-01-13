@@ -296,7 +296,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                            }
                            else
                            {
-                              if (alert("Connection to interface was lost 1", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                              if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                                  state = OBD_INFO_START;
                               else
                               {
@@ -308,7 +308,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                         }
                         else
                         {
-                           if (alert("Connection to interface was lost 2", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                           if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                               state = OBD_INFO_START;
                            else
                            {
@@ -341,7 +341,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   }
                   else
                   {
-                     if (alert("Connection to interface was lost 3", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                     if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                         state = OBD_INFO_START;
                      else
                      {
@@ -387,7 +387,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                else if (serial_time_out) // if the timer timed out
                {
                   stop_serial_timer(); // stop the timer
-                  if (alert("Connection to interface was lost 4", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                  if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                      state = OBD_INFO_START;
                   else
                   {
@@ -449,7 +449,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                         }
                         else
                         {
-                           if (alert("Connection to interface was lost 5", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                           if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                               state = OBD_INFO_START;
                            else
                            {
@@ -496,7 +496,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                else if (serial_time_out) // if the timer timed out
                {
                   stop_serial_timer(); // stop the timer
-                  if (alert("Connection to interface was lost 6", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                  if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                      state = OBD_INFO_START;
                   else
                   {
@@ -546,7 +546,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                else if (serial_time_out) // if the timer timed out
                {
                   stop_serial_timer(); // stop the timer
-                  if (alert("Connection to interface was lost 7", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                  if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                      state = OBD_INFO_START;
                   else
                   {
