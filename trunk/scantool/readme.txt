@@ -1,5 +1,5 @@
 *********************************************************************
-         ScanTool.net OBD-II Software v1.10 for ElmScan
+         ScanTool.net OBD-II Software v1.11 for ElmScan
          Copyright (C) 2005 ScanTool.net LLC, All Rights Reserved
 *********************************************************************
 
