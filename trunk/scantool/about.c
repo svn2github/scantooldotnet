@@ -3,6 +3,7 @@
 #include "custom_gui.h"
 #include "serial.h"
 #include "sensors.h"
+#include "options.h"
 #include "version.h"
 #include "about.h"
 
@@ -132,7 +133,15 @@ int obd_info_proc(int msg, DIALOG *d, int c)
          popup_dialog(obd_info_dialog, -1);
       }
       else
-         alert("COM port is not ready.", NULL, NULL, "OK", NULL, 0, 0);
+      {
+         while (comport.status != READY)
+         {
+            if (alert("Port is not ready.", "Please check that you specified the correct port", "and that no other application is using it", "Configure &Port", "&Cancel", 'p', 'c') == 1)
+               display_options(); // let the user choose correct settings
+            else
+               return D_REDRAWME;
+         }
+      }
 
       return D_O_K;
    }
