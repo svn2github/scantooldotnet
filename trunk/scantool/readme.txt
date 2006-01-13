@@ -59,6 +59,8 @@ Support Page located at http://www.scantool.net/support
 =========== Version History ==========
 ======================================
 
+   v1.11  -  Fixed a bug in Display Codes dialog, where the program would crash under some conditions
+             Refined "COM Port Could not be Open" error handling
    v1.10  -  Added baud rate switching
              Made compatible with ELM327
              Added protocol detection to reset interface dialog
