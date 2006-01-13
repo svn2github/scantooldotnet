@@ -83,5 +83,5 @@ custom_gui.o: custom_gui.c globals.h custom_gui.h
 error_handlers.o: error_handlers.c globals.h error_handlers.h
 	$(CC) $(CFLAGS) -c error_handlers.c
 
-about.o: about.c globals.h custom_gui.h serial.h sensors.h version.h about.h
+about.o: about.c globals.h custom_gui.h serial.h sensors.h options.h version.h about.h
 	$(CC) $(CFLAGS) -c about.c
