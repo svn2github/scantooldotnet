@@ -36,15 +36,14 @@ typedef struct TROUBLE_CODE
 } TROUBLE_CODE;
 
 
-static int num_of_codes = 0;
 static int num_of_codes_reported = 0;
 static int current_code_index;
 static int simulate = FALSE;
 static int mil_is_on; // MIL is ON or OFF
 
-static TROUBLE_CODE trouble_codes[] = {{"", NULL, NULL, FALSE, NULL}};
+static TROUBLE_CODE *trouble_codes = NULL;
 
-static TROUBLE_CODE *add_trouble_code(const TROUBLE_CODE *);
+static void add_trouble_code(const TROUBLE_CODE *);
 static TROUBLE_CODE *get_trouble_code(int index);
 static int get_number_of_codes();
 static void clear_trouble_codes();
@@ -64,6 +63,7 @@ static int tr_solution_proc(int msg, DIALOG *d, int c);
 static int current_code_proc(int msg, DIALOG *d, int c);
 
 // function definitions:
+static void read_codes();
 static void trouble_codes_simulator(int show);
 static int handle_num_of_codes(char *);
 static int handle_read_codes(char *, int);
@@ -120,8 +120,8 @@ int display_trouble_codes()
    int ret;
    
    mil_is_on = FALSE; // reset MIL status
-   num_of_codes = 0;
    num_of_codes_reported = 0;
+   clear_trouble_codes();
    
    centre_dialog(confirm_clear_dialog);  // center the popup dialog
 
@@ -146,12 +146,15 @@ void trouble_codes_simulator(int show)
       strcpy(buf, SIM_CODES_STRING);
       process_response(NULL, buf);
       clear_trouble_codes();
-      num_of_codes_reported = num_of_codes = handle_read_codes(buf, FALSE);
+      num_of_codes_reported = handle_read_codes(buf, FALSE);
       populate_trouble_codes_list();
       mil_is_on = TRUE;
    }
    else
-      num_of_codes_reported = num_of_codes = 0;
+   {
+      clear_trouble_codes();
+      num_of_codes_reported = 0;
+   }
 
    broadcast_dialog_message(MSG_READY, 0);
 }
@@ -167,7 +170,7 @@ int current_code_proc(int msg, DIALOG *d, int c)
          break;
 
       case MSG_READY:
-         if (num_of_codes == 0)
+         if (get_number_of_codes() == 0)
             d->dp = empty_string;
          else
             d->dp = get_trouble_code(current_code_index)->code;
@@ -191,7 +194,7 @@ int tr_description_proc(int msg, DIALOG *d, int c)   // procedure which displays
          break;
 
       case MSG_READY:   // when it receives MSG_READY
-         if (num_of_codes == 0)
+         if (get_number_of_codes() == 0)
             d->dp = empty_string;
          else if (!(d->dp = get_trouble_code(current_code_index)->description))
          {
@@ -216,7 +219,7 @@ int tr_solution_proc(int msg, DIALOG *d, int c)   // procedure which displays a 
          break;
       
       case MSG_READY:   // when it receives MSG_READY
-         if (num_of_codes == 0)
+         if (get_number_of_codes() == 0)
             d->dp = empty_string;
          else if(!(d->dp = get_trouble_code(current_code_index)->solution))
             d->dp = empty_string;
@@ -264,9 +267,6 @@ int mil_status_proc(int msg, DIALOG *d, int c)
          break;
 
       case MSG_READY:
-         if (num_of_codes_reported == 0)
-            mil_is_on = FALSE;
-            
          if (mil_is_on)
             d->dp = datafile[MIL_ON_BMP].dat;
          else
@@ -298,9 +298,6 @@ int mil_text_proc(int msg, DIALOG *d, int c)
          break;
          
       case MSG_READY:
-         if (num_of_codes_reported == 0)
-            mil_is_on = FALSE;
-            
          if (mil_is_on)
             strcpy(d->dp, "MIL is ON");
          else
@@ -316,6 +313,27 @@ int mil_text_proc(int msg, DIALOG *d, int c)
 int simulate_proc(int msg, DIALOG *d, int c)
 {
    int ret;
+
+   switch (msg)
+   {
+      case MSG_READ_CODES: case MSG_CLEAR_CODES:
+         // if we are currently reading or clearing codes, and the button is enabled,
+         if (!(d->flags & D_DISABLED))
+         {
+            d->flags |= D_DISABLED;     // disable the button
+            return D_REDRAWME;
+         }
+         break;
+
+      case MSG_READY:
+         // if we're not reading or clearing codes, and the button is disabled,
+         if (d->flags & D_DISABLED)
+         {
+            d->flags &= ~D_DISABLED;   // enable it
+            return D_REDRAWME;
+         }
+         break;
+   }
    
    ret = d_check_proc(msg, d, c);
    
@@ -334,6 +352,23 @@ int simulate_proc(int msg, DIALOG *d, int c)
       
    return ret;
 }   
+
+
+void read_codes()
+{
+   while (comport.status != READY)
+   {
+      if (alert("Port is not ready.", "Please check that you specified the correct port", "and that no other application is using it", "Configure &Port", "&Cancel", 'p', 'c') == 1)
+         display_options(); // let the user choose correct settings
+      else
+         return;
+   }
+
+   clear_trouble_codes();
+   num_of_codes_reported = 0;
+   broadcast_dialog_message(MSG_READY, 0);
+   broadcast_dialog_message(MSG_READ_CODES, 0);
+}
 
 
 int read_tr_codes_proc(int msg, DIALOG *d, int c)
@@ -368,8 +403,7 @@ int read_tr_codes_proc(int msg, DIALOG *d, int c)
       if (simulate)
          trouble_codes_simulator(TRUE);
       else
-      // if button was clicked, send everyone MSG_READ_CODES:
-      broadcast_dialog_message(MSG_READ_CODES, 0);
+         read_codes();
       
       return D_REDRAWME;
    }
@@ -405,7 +439,15 @@ int clear_codes_proc(int msg, DIALOG *d, int c)
    ret = d_button_proc(msg, d, c);
 
    if (ret == D_CLOSE)
-   {    
+   {
+      while (!simulate && comport.status != READY)
+      {
+         if (alert("Port is not ready.", "Please check that you specified the correct port", "and that no other application is using it", "Configure &Port", "&Cancel", 'p', 'c') == 1)
+            display_options(); // let the user choose correct settings
+         else
+            return D_REDRAWME;
+      }
+      
       // if user confirmed that he wants to erase the codes,
       if(popup_dialog(confirm_clear_dialog, 6) == 5)
       {
@@ -426,6 +468,7 @@ int clear_codes_proc(int msg, DIALOG *d, int c)
 int tr_code_proc(int msg, DIALOG *d, int c)
 {
    static char vehicle_response[1024];        // character buffer for car response
+   static int first_read_occured = FALSE;
    static int receiving_response = FALSE;    // flag, "are we receiving response?"
    static int verifying_connection = FALSE;  // flag, "are we verifying connection?"
    static int current_request;               // NUM_OF_CODES, READ_CODES, CLEAR_CODES
@@ -437,6 +480,14 @@ int tr_code_proc(int msg, DIALOG *d, int c)
    switch (msg)
    {
       case MSG_IDLE:
+         if (!first_read_occured)
+         {
+            if (!simulate)
+               read_codes();
+            first_read_occured = TRUE;
+            return D_O_K;
+         }
+         
          if (comport.status == READY)
          {
             if (verifying_connection && !receiving_response)
@@ -516,7 +567,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                         {
                            if (temp_num_of_codes > 0)
                               verifying_connection = TRUE;
-                           num_of_codes = num_of_codes_reported = 0;
+                           num_of_codes_reported = 0;
                         }
                         else if(response_type != HEX_DATA) // if we got an error,
                         {
@@ -527,7 +578,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                         {
                            num_of_codes_reported = temp_num_of_codes;
                            clear_trouble_codes();
-                           num_of_codes = handle_read_codes(vehicle_response, FALSE);
+                           handle_read_codes(vehicle_response, FALSE);
                         }
                         
                         send_command("07");   // request the codes themselves
@@ -542,7 +593,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
 
                         if (response_type == ERR_NO_DATA) // vehicle didn't respond, check connection
                         {
-                           if (num_of_codes == 0)
+                           if (get_number_of_codes() == 0)
                               alert("No Diagnostic Trouble Codes (DTCs) detected", NULL, NULL, "OK", NULL, 0, 0);
                         }
                         else if(response_type != HEX_DATA) // if we got an error,
@@ -551,7 +602,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                            break;
                         }
                         else  // if there were *no* errors,
-                           num_of_codes += handle_read_codes(vehicle_response, TRUE);
+                           handle_read_codes(vehicle_response, TRUE);
 
                         populate_trouble_codes_list();
                         broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
@@ -566,7 +617,8 @@ int tr_code_proc(int msg, DIALOG *d, int c)
                            handle_errors(response_type, CLEAR_CODES);
                         else // if everything's fine (received confirmation)
                         {
-                           num_of_codes = num_of_codes_reported = 0;
+                           clear_trouble_codes();
+                           num_of_codes_reported = 0;
                            broadcast_dialog_message(MSG_READY, 0);
                         }
                      }
@@ -600,8 +652,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
       case MSG_START:
          receiving_response = FALSE;
          verifying_connection = FALSE;
-         if (!simulate)
-            broadcast_dialog_message(MSG_READ_CODES, 0);
+         first_read_occured = FALSE;
          break;
 
       case MSG_READ_CODES:
@@ -642,6 +693,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
 int code_list_proc(int msg, DIALOG *d, int c)
 {
    static int curr_num_of_codes = 0;
+   int num_of_codes = get_number_of_codes();
    int ret;
    
    if (msg == MSG_READY)
@@ -672,10 +724,7 @@ char* code_list_getter(int index, int *list_size)
 {
    if (index < 0)
    {
-      if (num_of_codes > 0)
-         *list_size = get_number_of_codes();
-      else
-         *list_size = 0;
+      *list_size = get_number_of_codes();
       return NULL;
    }
 
@@ -764,7 +813,7 @@ void populate_trouble_codes_list()
    char character;
    int i, j, min;
    char temp_buf[1024];
-   TROUBLE_CODE *trouble_codes_list;
+   TROUBLE_CODE *trouble_code;
    int count = get_number_of_codes();
    PACKFILE *code_def_file;
 
@@ -782,11 +831,11 @@ void populate_trouble_codes_list()
       swap_codes(get_trouble_code(i), get_trouble_code(min));
    }
    
-   for (trouble_codes_list = trouble_codes->next; trouble_codes_list; trouble_codes_list = trouble_codes_list->next)   // search for descriptions and solutions
+   for (trouble_code = trouble_codes; trouble_code; trouble_code = trouble_code->next)   // search for descriptions and solutions
    {
       // pass the letter (B, C, P, or U) to file_handle, which returns the file handle
       // if we reached EOF, or the file does not exist, go to the next DTC
-      if ((code_def_file = file_handle(trouble_codes_list->code[0])) == NULL)
+      if ((code_def_file = file_handle(trouble_code->code[0])) == NULL)
          continue;
 
       while (TRUE)
@@ -804,7 +853,7 @@ void populate_trouble_codes_list()
          if (character == EOF) // reached end of file, break out of while()
             break;             // advance to next code
 
-         if (strncmp(trouble_codes_list->code, temp_buf, 5) == 0) // if we found the code,
+         if (strncmp(trouble_code->code, temp_buf, 5) == 0) // if we found the code,
          {
             if (character == RECORD_DELIMITER)  // reached end of record, no description or solution,
                break;                        // break out of while(), advance to next code
@@ -820,18 +869,18 @@ void populate_trouble_codes_list()
             temp_buf[j] = '\0';  // terminate string
             if (j > 0)
             {
-               if (!(trouble_codes_list->description = (char *)malloc(sizeof(char)*(j + 1 + ((trouble_codes_list->pending) ? 10 : 0)))))
+               if (!(trouble_code->description = (char *)malloc(sizeof(char)*(j + 1 + ((trouble_code->pending) ? 10 : 0)))))
                {
                   sprintf(temp_error_buf, "Could not allocate enough memory for trouble code description [%i]", count);
                   fatal_error(temp_error_buf);
                }
-               if (trouble_codes_list->pending)
+               if (trouble_code->pending)
                {
-                  strcpy(trouble_codes_list->description, "[Pending]\n");
-                  strcpy(trouble_codes_list->description + 10, temp_buf);  // copy description from temp_buf
+                  strcpy(trouble_code->description, "[Pending]\n");
+                  strcpy(trouble_code->description + 10, temp_buf);  // copy description from temp_buf
                }
                else
-                  strcpy(trouble_codes_list->description, temp_buf);  // copy description from temp_buf
+                  strcpy(trouble_code->description, temp_buf);  // copy description from temp_buf
             }
 
             if (character == FIELD_DELIMITER)   // if we have solution,
@@ -847,12 +896,12 @@ void populate_trouble_codes_list()
                temp_buf[j] = '\0';   // terminate string
                if (j > 0)
                {
-                  if (!(trouble_codes_list->solution = (char *)malloc(sizeof(char)*(j+1))))
+                  if (!(trouble_code->solution = (char *)malloc(sizeof(char)*(j+1))))
                   {
                      sprintf(temp_error_buf, "Could not allocate enough memory for trouble code solution [%i]", count);
                      fatal_error(temp_error_buf);
                   }
-                  strcpy(trouble_codes_list->solution, temp_buf);  // copy solution from temp_buf
+                  strcpy(trouble_code->solution, temp_buf);  // copy solution from temp_buf
                }
             }
             break;  // break out of while(TRUE)
@@ -923,36 +972,29 @@ void swap_codes(TROUBLE_CODE *code1, TROUBLE_CODE *code2)
 }
 
 
-TROUBLE_CODE *add_trouble_code(const TROUBLE_CODE * init_code)
+void add_trouble_code(const TROUBLE_CODE * init_code)
 {
-   TROUBLE_CODE *trouble_code = trouble_codes;
+   TROUBLE_CODE *next = trouble_codes;
 
-   while(trouble_code->next)
-      trouble_code = trouble_code->next;
-
-   if (!(trouble_code->next = (TROUBLE_CODE *)malloc(sizeof(TROUBLE_CODE))))
-   {
-      sprintf(temp_error_buf, "Could not allocate enough memory for new trouble code [%i]", num_of_codes);
-      fatal_error(temp_error_buf);
-   }
+   if (!(trouble_codes = (TROUBLE_CODE *)malloc(sizeof(TROUBLE_CODE))))
+      fatal_error("Could not allocate enough memory for new trouble code");
    
    if (init_code)
    {
-      strcpy(trouble_code->next->code, init_code->code);
-      trouble_code->next->description = init_code->description;
-      trouble_code->next->solution = init_code->solution;
-      trouble_code->next->pending = init_code->pending;
+      strcpy(trouble_codes->code, init_code->code);
+      trouble_codes->description = init_code->description;
+      trouble_codes->solution = init_code->solution;
+      trouble_codes->pending = init_code->pending;
    }
    else
    {
-      trouble_code->next->code[0] = '\0';
-      trouble_code->next->description = NULL;
-      trouble_code->next->solution = NULL;
-      trouble_code->next->solution = FALSE;
+      trouble_codes->code[0] = 0;
+      trouble_codes->description = NULL;
+      trouble_codes->solution = NULL;
+      trouble_codes->pending = FALSE;
    }
-   trouble_code->next->next = NULL;
-
-   return trouble_code->next;
+   
+   trouble_codes->next = next;
 }
 
 
@@ -961,9 +1003,9 @@ TROUBLE_CODE *get_trouble_code(int index)
    int i;
    TROUBLE_CODE *trouble_code = trouble_codes;
 
-   for(i = 0; i <= index; i++)
+   for(i = 0; i < index; i++)
    {
-      if (!trouble_code->next)
+      if (trouble_code->next == NULL)
          return NULL;
       trouble_code = trouble_code->next;
    }
@@ -974,11 +1016,14 @@ TROUBLE_CODE *get_trouble_code(int index)
 
 int get_number_of_codes()
 {
-   int ret = 0;
    TROUBLE_CODE *trouble_code = trouble_codes;
+   int ret = 0;
    
-   while((trouble_code = trouble_code->next))
+   while(trouble_code)
+   {
+      trouble_code = trouble_code->next;
       ret++;
+   }
    
    return ret;
 }
@@ -986,24 +1031,19 @@ int get_number_of_codes()
 
 void clear_trouble_codes()
 {
-   TROUBLE_CODE *trouble_code = trouble_codes;
    TROUBLE_CODE *next;
    
-   if (trouble_codes->next)
+   while (trouble_codes)
    {
       next = trouble_codes->next;
-      do
-      {
-         trouble_code = next;
-         next = trouble_code->next;
-         if (trouble_code->description)
-            free(trouble_code->description);
-         if (trouble_code->solution)
-            free(trouble_code->solution);
-         free(trouble_code);
-      } while(next);
-      
-      trouble_codes->next = NULL;
+
+      if (trouble_codes->description)
+         free(trouble_codes->description);
+      if (trouble_codes->solution)
+         free(trouble_codes->solution);
+      free(trouble_codes);
+
+      trouble_codes = next;
    }
 }
 
