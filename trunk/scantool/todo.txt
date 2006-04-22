@@ -1,0 +1,5 @@
+- fix CAN DTC messages being interpreted incorrectly
+- fix 7F responses being interpereted as NO DATA and giving "vehicle not connected" error message
+- change error messages for INIT ERROR to be more discriptive
+- expand Clear Codes warning to describe specific things that are erased
+- fix refresh rate showing 0.00Hz instead of N/A in the Sensor Data window

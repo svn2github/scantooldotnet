@@ -1,7 +1,7 @@
 [Project]
 FileName=ScanTool.dev
 Name=ScanTool
-UnitCount=24
+UnitCount=25
 Icon=
 ObjFile=
 Type=0
@@ -281,6 +281,15 @@ BuildCmd=
 
 [Unit24]
 FileName=makefile
+Folder=Misc Files
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=
+
+[Unit25]
+FileName=todo.txt
 Folder=Misc Files
 Compile=0
 Link=0
