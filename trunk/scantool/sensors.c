@@ -186,7 +186,7 @@ static SENSOR sensors[] =
    { abs_tp_formula,                "Accelerator Pedal Position F:",  "", "4B",      1,    1 },
    { tac_pct_formula,               "Comm. Throttle Actuator Cntrl:", "", "4C",      1,    1 }, // commanded TAC
    { mil_time_formula,              "Engine running while MIL on:",   "", "4D",      1,    2 }, // minutes run by the engine while MIL activated
-   { clr_time_formula,              "Time since ECU reset:",          "", "4E",      1,    2 },
+   { clr_time_formula,              "Time since DTCs cleared:",       "", "4E",      1,    2 },
    { NULL,                          "",                               "", "",        0,    0 }
 };
 
