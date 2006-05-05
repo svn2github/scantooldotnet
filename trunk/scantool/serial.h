@@ -71,7 +71,7 @@ int read_comport(char *response);
 void start_serial_timer(int delay);
 void stop_serial_timer();
 int process_response(const char *cmd_sent, char *msg_received);
-int find_valid_response(char *buf, char *response, const char *mode, char **stop);
+int find_valid_response(char *buf, char *response, const char *filter, char **stop);
 const char *get_protocol_string(int interface_type, int protocol_id);
 void display_error_message(int error);
 

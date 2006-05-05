@@ -214,7 +214,7 @@ int read_comport(char *response)
 }
 
 
-int find_valid_response(char *buf, char *response, const char *mode, char **stop)
+int find_valid_response(char *buf, char *response, const char *filter, char **stop)
 {
    char *in_ptr = response;
    char *out_ptr = buf;
@@ -223,12 +223,8 @@ int find_valid_response(char *buf, char *response, const char *mode, char **stop
 
    while (*in_ptr)
    {
-      if ((*in_ptr == mode[0] && *(in_ptr+1) == mode[1]) ||                         // If valid response is found
-          (*(in_ptr+1) == ':' && *(in_ptr+2) == mode[0] && *(in_ptr+3) == mode[1])) // Hack to support ELM327 CAN mode
+      if (strncmp(in_ptr, filter, strlen(filter)) == 0)
       {
-         if (*(in_ptr+1) == ':')
-            in_ptr += 2;
-            
          while (*in_ptr && *in_ptr != SPECIAL_DELIMITER) // copy valid response into buf
          {
             *out_ptr = *in_ptr;
@@ -419,7 +415,7 @@ const char *get_protocol_string(int interface_type, int protocol_id)
       case INTERFACE_ELM322:
          return "SAE J1850 VPW (10.4 kBit/s)";
       case INTERFACE_ELM323:
-         return "ISO 9141-2 / ISO 14230-4 KWP2000";
+         return "ISO 9141-2 / ISO 14230-4 (KWP2000)";
       case INTERFACE_ELM327:
          switch (protocol_id)
          {
