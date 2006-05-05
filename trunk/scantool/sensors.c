@@ -946,7 +946,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
 
                      if (response_type == HEX_DATA)  // HEX_DATA received
                      {
-                        sprintf(cmd, "41 %s", sensor->pid);
+                        sprintf(cmd, "41%s", sensor->pid);
                         if (find_valid_response(buf, vehicle_response, cmd, NULL))
                         {
                            calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
