@@ -26,7 +26,7 @@ typedef struct
    void (*formula)(int raw_data, char *buf);
    char label[32];
    char screen_buf[64];
-   char command[5];
+   char pid[3];
    int enabled;
    int bytes; // number of data bytes expected from vehicle
 } SENSOR;
@@ -100,94 +100,94 @@ static int num_of_disabled_sensors = 0;
 static int sensors_on_page = 0;
 static int current_page = 0;
 
-static float inst_refresh_rate = 0; // instantaneous refresh rate
-static float avg_refresh_rate = 0;  // average refresh rate
+static float inst_refresh_rate = -1; // instantaneous refresh rate
+static float avg_refresh_rate = -1;  // average refresh rate
 
 volatile int refresh_time; // time between sensor updates
 
 static SENSOR sensors[] =
 {
-   // formula                        // label            //screen_buffer  //command   //enabled // bytes
-   { throttle_position_formula,     "Absolute Throttle Position:",    "", "0111",      1,    1 },
-   { engine_rpm_formula,            "Engine RPM:",                    "", "010C",      1,    2 },
-   { vehicle_speed_formula,         "Vehicle Speed:",                 "", "010D",      1,    1 },
-   { engine_load_formula,           "Calculated Load Value:",         "", "0104",      1,    1 },
-   { timing_advance_formula,        "Timing Advance:",                "", "010E",      1,    1 },
-   { intake_pressure_formula,       "Intake Manifold Pressure:",      "", "010B",      1,    1 },
-   { air_flow_rate_formula,         "Air Flow Rate (MAF sensor):",    "", "0110",      1,    2 },
-   { fuel_system1_status_formula,   "Fuel System 1 Status:",          "", "0103",      1,    2 },
-   { fuel_system2_status_formula,   "Fuel System 2 Status:",          "", "0103",      1,    2 },
+   // formula                        // label            //screen_buffer  //pid  //enabled // bytes
+   { throttle_position_formula,     "Absolute Throttle Position:",    "", "11",      1,    1 },
+   { engine_rpm_formula,            "Engine RPM:",                    "", "0C",      1,    2 },
+   { vehicle_speed_formula,         "Vehicle Speed:",                 "", "0D",      1,    1 },
+   { engine_load_formula,           "Calculated Load Value:",         "", "04",      1,    1 },
+   { timing_advance_formula,        "Timing Advance:",                "", "0E",      1,    1 },
+   { intake_pressure_formula,       "Intake Manifold Pressure:",      "", "0B",      1,    1 },
+   { air_flow_rate_formula,         "Air Flow Rate (MAF sensor):",    "", "10",      1,    2 },
+   { fuel_system1_status_formula,   "Fuel System 1 Status:",          "", "03",      1,    2 },
+   { fuel_system2_status_formula,   "Fuel System 2 Status:",          "", "03",      1,    2 },
    // Page 2
-   { short_term_fuel_trim_formula,  "Short Term Fuel Trim (Bank 1):", "", "0106",      1,    2 },
-   { long_term_fuel_trim_formula,   "Long Term Fuel Trim (Bank 1):",  "", "0107",      1,    2 },
-   { short_term_fuel_trim_formula,  "Short Term Fuel Trim (Bank 2):", "", "0108",      1,    2 },
-   { long_term_fuel_trim_formula,   "Long Term Fuel Trim (Bank 2):",  "", "0109",      1,    2 },
-   { intake_air_temp_formula,       "Intake Air Temperature:",        "", "010F",      1,    1 },
-   { coolant_temp_formula,          "Coolant Temperature:",           "", "0105",      1,    1 },
-   { fuel_pressure_formula,         "Fuel Pressure (gauge):",         "", "010A",      1,    1 },
-   { secondary_air_status_formula,  "Secondary air status:",          "", "0112",      1,    1 },
-   { pto_status_formula,            "Power Take-Off Status:",         "", "011E",      1,    1 },
+   { short_term_fuel_trim_formula,  "Short Term Fuel Trim (Bank 1):", "", "06",      1,    2 },
+   { long_term_fuel_trim_formula,   "Long Term Fuel Trim (Bank 1):",  "", "07",      1,    2 },
+   { short_term_fuel_trim_formula,  "Short Term Fuel Trim (Bank 2):", "", "08",      1,    2 },
+   { long_term_fuel_trim_formula,   "Long Term Fuel Trim (Bank 2):",  "", "09",      1,    2 },
+   { intake_air_temp_formula,       "Intake Air Temperature:",        "", "0F",      1,    1 },
+   { coolant_temp_formula,          "Coolant Temperature:",           "", "05",      1,    1 },
+   { fuel_pressure_formula,         "Fuel Pressure (gauge):",         "", "0A",      1,    1 },
+   { secondary_air_status_formula,  "Secondary air status:",          "", "12",      1,    1 },
+   { pto_status_formula,            "Power Take-Off Status:",         "", "1E",      1,    1 },
    // Page 3
-   { o2_sensor_formula,             "O2 Sensor 1, Bank 1:",           "", "0114",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 2, Bank 1:",           "", "0115",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 3, Bank 1:",           "", "0116",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 4, Bank 1:",           "", "0117",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 1, Bank 2:",           "", "0118",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 2, Bank 2:",           "", "0119",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 3, Bank 2:",           "", "011A",      1,    2 },
-   { o2_sensor_formula,             "O2 Sensor 4, Bank 2:",           "", "011B",      1,    2 },
-   { obd_requirements_formula,      "OBD conforms to:",               "", "011C",      1,    1 },
+   { o2_sensor_formula,             "O2 Sensor 1, Bank 1:",           "", "14",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 2, Bank 1:",           "", "15",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 3, Bank 1:",           "", "16",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 4, Bank 1:",           "", "17",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 1, Bank 2:",           "", "18",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 2, Bank 2:",           "", "19",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 3, Bank 2:",           "", "1A",      1,    2 },
+   { o2_sensor_formula,             "O2 Sensor 4, Bank 2:",           "", "1B",      1,    2 },
+   { obd_requirements_formula,      "OBD conforms to:",               "", "1C",      1,    1 },
    // Page 4
-   { o2_sensor_wrv_formula,         "O2 Sensor 1, Bank 1 (WR):",      "", "0124",      1,    4 },    // o2 sensors (wide range), voltage
-   { o2_sensor_wrv_formula,         "O2 Sensor 2, Bank 1 (WR):",      "", "0125",      1,    4 },
-   { o2_sensor_wrv_formula,         "O2 Sensor 3, Bank 1 (WR):",      "", "0126",      1,    4 },
-   { o2_sensor_wrv_formula,         "O2 Sensor 4, Bank 1 (WR):",      "", "0127",      1,    4 },
-   { o2_sensor_wrv_formula,         "O2 Sensor 1, Bank 2 (WR):",      "", "0128",      1,    4 },
-   { o2_sensor_wrv_formula,         "O2 Sensor 2, Bank 2 (WR):",      "", "0129",      1,    4 },
-   { o2_sensor_wrv_formula,         "O2 Sensor 3, Bank 2 (WR):",      "", "012A",      1,    4 },
-   { o2_sensor_wrv_formula,         "O2 Sensor 4, Bank 2 (WR):",      "", "012B",      1,    4 },
-   { engine_run_time_formula,       "Time Since Engine Start:",       "", "011F",      1,    2 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 1, Bank 1 (WR):",      "", "24",      1,    4 },    // o2 sensors (wide range), voltage
+   { o2_sensor_wrv_formula,         "O2 Sensor 2, Bank 1 (WR):",      "", "25",      1,    4 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 3, Bank 1 (WR):",      "", "26",      1,    4 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 4, Bank 1 (WR):",      "", "27",      1,    4 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 1, Bank 2 (WR):",      "", "28",      1,    4 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 2, Bank 2 (WR):",      "", "29",      1,    4 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 3, Bank 2 (WR):",      "", "2A",      1,    4 },
+   { o2_sensor_wrv_formula,         "O2 Sensor 4, Bank 2 (WR):",      "", "2B",      1,    4 },
+   { engine_run_time_formula,       "Time Since Engine Start:",       "", "1F",      1,    2 },
    // Page 5
-   { frp_relative_formula,          "FRP rel. to manifold vacuum:",   "", "0122",      1,    2 },    // fuel rail pressure relative to manifold vacuum
-   { frp_widerange_formula,         "Fuel Pressure (gauge):",         "", "0123",      1,    2 },    // fuel rail pressure (gauge), wide range
-   { commanded_egr_formula,         "Commanded EGR:",                 "", "012C",      1,    1 },
-   { egr_error_formula,             "EGR Error:",                     "", "012D",      1,    1 },
-   { evap_pct_formula,              "Commanded Evaporative Purge:",   "", "012E",      1,    1 },
-   { fuel_level_formula,            "Fuel Level Input:",              "", "012F",      1,    1 },
-   { warm_ups_formula,              "Warm-ups since ECU reset:",      "", "0130",      1,    1 },
-   { clr_distance_formula,          "Distance since ECU reset:",      "", "0131",      1,    2 },
-   { evap_vp_formula,               "Evap System Vapor Pressure:",    "", "0132",      1,    2 },
+   { frp_relative_formula,          "FRP rel. to manifold vacuum:",   "", "22",      1,    2 },    // fuel rail pressure relative to manifold vacuum
+   { frp_widerange_formula,         "Fuel Pressure (gauge):",         "", "23",      1,    2 },    // fuel rail pressure (gauge), wide range
+   { commanded_egr_formula,         "Commanded EGR:",                 "", "2C",      1,    1 },
+   { egr_error_formula,             "EGR Error:",                     "", "2D",      1,    1 },
+   { evap_pct_formula,              "Commanded Evaporative Purge:",   "", "2E",      1,    1 },
+   { fuel_level_formula,            "Fuel Level Input:",              "", "2F",      1,    1 },
+   { warm_ups_formula,              "Warm-ups since ECU reset:",      "", "30",      1,    1 },
+   { clr_distance_formula,          "Distance since ECU reset:",      "", "31",      1,    2 },
+   { evap_vp_formula,               "Evap System Vapor Pressure:",    "", "32",      1,    2 },
    // Page 6
-   { o2_sensor_wrc_formula,         "O2 Sensor 1, Bank 1 (WR):",      "", "0134",      1,    4 },   // o2 sensors (wide range), current
-   { o2_sensor_wrc_formula,         "O2 Sensor 2, Bank 1 (WR):",      "", "0135",      1,    4 },
-   { o2_sensor_wrc_formula,         "O2 Sensor 3, Bank 1 (WR):",      "", "0136",      1,    4 },
-   { o2_sensor_wrc_formula,         "O2 Sensor 4, Bank 1 (WR):",      "", "0137",      1,    4 },
-   { o2_sensor_wrc_formula,         "O2 Sensor 1, Bank 2 (WR):",      "", "0138",      1,    4 },
-   { o2_sensor_wrc_formula,         "O2 Sensor 2, Bank 2 (WR):",      "", "0139",      1,    4 },
-   { o2_sensor_wrc_formula,         "O2 Sensor 3, Bank 2 (WR):",      "", "013A",      1,    4 },
-   { o2_sensor_wrc_formula,         "O2 Sensor 4, Bank 2 (WR):",      "", "013B",      1,    4 },
-   { mil_distance_formula,          "Distance since MIL activated:",  "", "0121",      1,    2 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 1, Bank 1 (WR):",      "", "34",      1,    4 },   // o2 sensors (wide range), current
+   { o2_sensor_wrc_formula,         "O2 Sensor 2, Bank 1 (WR):",      "", "35",      1,    4 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 3, Bank 1 (WR):",      "", "36",      1,    4 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 4, Bank 1 (WR):",      "", "37",      1,    4 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 1, Bank 2 (WR):",      "", "38",      1,    4 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 2, Bank 2 (WR):",      "", "39",      1,    4 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 3, Bank 2 (WR):",      "", "3A",      1,    4 },
+   { o2_sensor_wrc_formula,         "O2 Sensor 4, Bank 2 (WR):",      "", "3B",      1,    4 },
+   { mil_distance_formula,          "Distance since MIL activated:",  "", "21",      1,    2 },
    // Page 7
-   { baro_pressure_formula,         "Barometric Pressure:",           "", "0133",      1,    1 },
-   { cat_temp_formula,              "CAT Temperature, B1S1:",         "", "013C",      1,    2 },
-   { cat_temp_formula,              "CAT Temperature, B2S1:",         "", "013D",      1,    2 },
-   { cat_temp_formula,              "CAT Temperature, B1S2:",         "", "013E",      1,    2 },
-   { cat_temp_formula,              "CAT Temperature, B2S2:",         "", "013F",      1,    2 },
-   { ecu_voltage_formula,           "ECU voltage:",                   "", "0142",      1,    2 },
-   { abs_load_formula,              "Absolute Engine Load:",          "", "0143",      1,    2 },
-   { eq_ratio_formula,              "Commanded Equivalence Ratio:",   "", "0144",      1,    2 },
-   { amb_air_temp_formula,          "Ambient Air Temperature:",       "", "0146",      1,    1 },  // same scaling as $0F
+   { baro_pressure_formula,         "Barometric Pressure:",           "", "33",      1,    1 },
+   { cat_temp_formula,              "CAT Temperature, B1S1:",         "", "3C",      1,    2 },
+   { cat_temp_formula,              "CAT Temperature, B2S1:",         "", "3D",      1,    2 },
+   { cat_temp_formula,              "CAT Temperature, B1S2:",         "", "3E",      1,    2 },
+   { cat_temp_formula,              "CAT Temperature, B2S2:",         "", "3F",      1,    2 },
+   { ecu_voltage_formula,           "ECU voltage:",                   "", "42",      1,    2 },
+   { abs_load_formula,              "Absolute Engine Load:",          "", "43",      1,    2 },
+   { eq_ratio_formula,              "Commanded Equivalence Ratio:",   "", "44",      1,    2 },
+   { amb_air_temp_formula,          "Ambient Air Temperature:",       "", "46",      1,    1 },  // same scaling as $0F
    // Page 8
-   { relative_tp_formula,           "Relative Throttle Position:",    "", "0145",      1,    1 },
-   { abs_tp_formula,                "Absolute Throttle Position B:",  "", "0147",      1,    1 },
-   { abs_tp_formula,                "Absolute Throttle Position C:",  "", "0148",      1,    1 },
-   { abs_tp_formula,                "Accelerator Pedal Position D:",  "", "0149",      1,    1 },
-   { abs_tp_formula,                "Accelerator Pedal Position E:",  "", "014A",      1,    1 },
-   { abs_tp_formula,                "Accelerator Pedal Position F:",  "", "014B",      1,    1 },
-   { tac_pct_formula,               "Comm. Throttle Actuator Cntrl:", "", "014C",      1,    1 }, // commanded TAC
-   { mil_time_formula,              "Engine running while MIL on:",   "", "014D",      1,    2},  // minutes run by the engine while MIL activated
-   { clr_time_formula,              "Time since ECU reset:",          "", "014E",      1,    2 },
-   { NULL,                          "",                               "", "",     0 }
+   { relative_tp_formula,           "Relative Throttle Position:",    "", "45",      1,    1 },
+   { abs_tp_formula,                "Absolute Throttle Position B:",  "", "47",      1,    1 },
+   { abs_tp_formula,                "Absolute Throttle Position C:",  "", "48",      1,    1 },
+   { abs_tp_formula,                "Accelerator Pedal Position D:",  "", "49",      1,    1 },
+   { abs_tp_formula,                "Accelerator Pedal Position E:",  "", "4A",      1,    1 },
+   { abs_tp_formula,                "Accelerator Pedal Position F:",  "", "4B",      1,    1 },
+   { tac_pct_formula,               "Comm. Throttle Actuator Cntrl:", "", "4C",      1,    1 }, // commanded TAC
+   { mil_time_formula,              "Engine running while MIL on:",   "", "4D",      1,    2 }, // minutes run by the engine while MIL activated
+   { clr_time_formula,              "Time since ECU reset:",          "", "4E",      1,    2 },
+   { NULL,                          "",                               "", "",        0,    0 }
 };
 
 DIALOG sensor_dialog[] =
@@ -285,17 +285,17 @@ static void calculate_refresh_rate(int sensor_state)
 	{
  		if (sensor_state == SENSOR_ACTIVE) // if we received HEX data
  		{
-   	refresh_time = 0; // reset the time
-  		install_int(inc_refresh_time, REFRESH_RATE_PRECISION); // install handler
-      initialization_occured = TRUE;		
+      	refresh_time = 0; // reset the time
+     		install_int(inc_refresh_time, REFRESH_RATE_PRECISION); // install handler
+         initialization_occured = TRUE;
       }
   	}
    else  // if this is not our first ">"
    {
     	if ((num_of_sensors_off >= sensors_on_page) && !reset_on_all_off_occured) // if all sensors on page are OFF
      	{
-    		inst_refresh_rate = 0;
-     		avg_refresh_rate = 0;
+    		inst_refresh_rate = -1;
+     		avg_refresh_rate = -1;
      		reset_on_all_off_occured = TRUE;
      		broadcast_dialog_message(MSG_REFRESH, 0);
    	}
@@ -385,12 +385,14 @@ int inst_refresh_rate_proc(int msg, DIALOG *d, int c)
       case MSG_START:
          if ((d->dp = calloc(64, sizeof(char))) == NULL)
             fatal_error("Could not allocate enough memory for instantaneous refresh rate control");
-         sprintf(d->dp, "Instantaneous: N/A");
-         break;
+         // Fall through
 
       case MSG_REFRESH:
       case MSG_UPDATE:
-      	sprintf(d->dp, "Instantaneous: %.2fHz", inst_refresh_rate);
+         if (inst_refresh_rate >= 0)
+      	  sprintf(d->dp, "Instantaneous: %.2fHz", inst_refresh_rate);
+         else
+            sprintf(d->dp, "Instantaneous: N/A");
          d->flags |= D_DIRTY;
          break;
 
@@ -415,12 +417,14 @@ int avg_refresh_rate_proc(int msg, DIALOG *d, int c)
       case MSG_START:
          if ((d->dp = calloc(64, sizeof(char))) == NULL)
             fatal_error("Could not allocate enough memory for average refresh rate control");
-         sprintf(d->dp, "Average: N/A");
-         break;
+         // Fall through
 
       case MSG_REFRESH:
       case MSG_UPDATE:
-      	sprintf(d->dp, "Average: %.2fHz", avg_refresh_rate);
+         if (avg_refresh_rate >= 0)
+      	  sprintf(d->dp, "Average: %.2fHz", avg_refresh_rate);
+         else
+            sprintf(d->dp, "Average: N/A");
          d->flags |= D_DIRTY;
          break;
 
@@ -559,8 +563,8 @@ int page_flipper_proc(int msg, DIALOG *d, int c)
          current_page = last_page;
          
       fill_sensors(current_page);
-      inst_refresh_rate = 0;
-      avg_refresh_rate = 0;
+      inst_refresh_rate = -1;
+      avg_refresh_rate = -1;
       broadcast_dialog_message(MSG_UPDATE, 0);
 
       ret = D_REDRAWME;
@@ -795,6 +799,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
    static int retry_attempts = NUM_OF_RETRIES;
    static char vehicle_response[1024];
    char buf[256];
+   char cmd[8];
    int response_status = EMPTY; //status of the response: EMPTY, DATA, PROMPT
    int response_type;
    int ret = 0;
@@ -810,7 +815,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
       return D_O_K;
    }
 
-   if (!sensor && (msg != MSG_DRAW))  // CV: explain what this means
+   if (!sensor && (msg != MSG_DRAW))  // don't wanna handle any messages for an empty sensor line except MSG_DRAW
       return D_O_K;
 
    switch (msg)
@@ -904,7 +909,8 @@ int sensor_proc(int msg, DIALOG *d, int c)
                      return D_O_K;
                   }
 
-                  send_command(sensor->command); // send command for that particular sensor
+                  sprintf(cmd, "01%s", sensor->pid);
+                  send_command(cmd); // send command for that particular sensor
                   new_page = FALSE;
                   receiving_response = TRUE; // now we're waiting for response
                   start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer
@@ -935,11 +941,13 @@ int sensor_proc(int msg, DIALOG *d, int c)
                         break;
                      
                      strcat(vehicle_response, buf); // append contents of buf to vehicle_response
-                     response_type = process_response(sensor->command, vehicle_response);
+                     sprintf(cmd, "01%s", sensor->pid);
+                     response_type = process_response(cmd, vehicle_response);
 
                      if (response_type == HEX_DATA)  // HEX_DATA received
                      {
-                        if (find_valid_response(buf, vehicle_response, "41", NULL))
+                        sprintf(cmd, "41 %s", sensor->pid);
+                        if (find_valid_response(buf, vehicle_response, cmd, NULL))
                         {
                            calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
                            buf[4 + sensor->bytes * 2] = 0;  // solves problem where response is padded with zeroes (i.e., '41 05 7C 00 00 00')
