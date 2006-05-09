@@ -249,7 +249,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   strcat(response, buf);
                   status = process_response("ati", response);
 
-                  if (status == UNKNOWN_CMD)
+                  if (status < INTERFACE_ID)
                   {
                      send_command("atz"); // reset chip
                      start_serial_timer(ATZ_TIMEOUT);
@@ -365,7 +365,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   stop_serial_timer();
                   strcat(response, buf);
                   status = process_response("atz", response);
-                  
+
                   strcpy(obd_interface, response);
                   strcpy(obd_mfr, "N/A");
                   
@@ -373,15 +373,36 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   {
                      start_serial_timer(ECU_TIMEOUT);
                      strcpy(obd_protocol, "waiting for ECU timeout...");
+                     device = INTERFACE_ELM323;
                      state = OBD_INFO_ECU_TIMEOUT;
                   }
-                  else
+                  else if (status >= INTERFACE_ID)
                   {
                      send_command("0100");
                      start_serial_timer(OBD_REQUEST_TIMEOUT);
                      response[0] = 0;
                      strcpy(obd_protocol, "detecting...");
+                     device = status;
                      state = OBD_INFO_WAIT_0100;
+                  }
+                  else if (status == HEX_DATA)
+                  {
+                     state = OBD_INFO_START;
+                     break;
+                  }
+                  else
+                  {
+                     if (display_error_message(status, TRUE) == 1)
+                     {
+                        state = OBD_INFO_START;
+                        break;
+                     }
+                     else
+                     {
+                        clear_obd_info();
+                        state = OBD_INFO_IDLE;
+                        return D_REDRAW;
+                     }
                   }
                   
                   return D_REDRAW;
@@ -467,6 +488,8 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   {
                      if (status == ERR_NO_DATA || status == UNABLE_TO_CONNECT)
                         status = alert("There may have been a loss of connection.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "&Retry", "&Cancel", 'r', 'c');
+                     else if (status >= INTERFACE_ID)
+                        status = 1;
                      else  // all other errors
                         status = display_error_message(status, TRUE);
 
@@ -528,7 +551,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                      strcpy(obd_system, "N/A");
                   else  // other errors
                   {
-                     if (display_error_message(status, FALSE) == 1)
+                     if (display_error_message(status, TRUE) == 1)
                      {
                         state = OBD_INFO_START;
                         break;
