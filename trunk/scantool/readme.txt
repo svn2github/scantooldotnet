@@ -1,5 +1,5 @@
 *********************************************************************
-         ScanTool.net OBD-II Software v1.11 for ElmScan
+         ScanTool.net OBD-II Software v1.12 for ElmScan
          Copyright (C) 2005 ScanTool.net LLC, All Rights Reserved
 *********************************************************************
 
@@ -59,6 +59,11 @@ Support Page located at http://www.scantool.net/support
 =========== Version History ==========
 ======================================
 
+   v1.12  -  Refined error descriptions for ELM327
+             CAN DTC responses are now handled properly
+             SAE-defined DTCs with no description are now not identified as manufacturer-defined
+             Expanded Clear Codes warning to describe all things that will be cleared
+             A few small bugfixes
    v1.11  -  Fixed a bug in Display Codes dialog, where the program would crash under some conditions
              Refined "COM Port Could not be Open" error handling
    v1.10  -  Added baud rate switching
