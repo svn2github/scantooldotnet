@@ -205,7 +205,7 @@ int reset_proc(int msg, DIALOG *d, int c)
                   strcat(response, buf);
                   status = process_response("0100", response);
 
-                  if (status == ERR_NO_DATA)
+                  if (status == ERR_NO_DATA || status == UNABLE_TO_CONNECT)
                      alert("Protocol could not be detected.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "OK", NULL, 0, 0);
                   else if (status != HEX_DATA)
                      alert("Communication error", NULL, NULL, "OK", NULL, 0, 0);
@@ -215,7 +215,7 @@ int reset_proc(int msg, DIALOG *d, int c)
                else if (serial_time_out) // if the timer timed out
                {
                   stop_serial_timer(); // stop the timer
-                  alert("Connection with interface was lost", NULL, NULL, "OK", NULL, 0, 0);
+                  alert("Interface not found", NULL, NULL, "OK", NULL, 0, 0);
                   return D_CLOSE;
                }
          }
