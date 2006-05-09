@@ -234,8 +234,6 @@ int find_valid_response(char *buf, char *response, const char *filter, char **st
          *out_ptr = 0;  // terminate string
          if (*in_ptr == SPECIAL_DELIMITER)
             in_ptr++;
-         if (stop)
-            *stop = in_ptr;
          break;
       }
       else
@@ -248,13 +246,16 @@ int find_valid_response(char *buf, char *response, const char *filter, char **st
       }
    }
 
+   if (stop)
+      *stop = in_ptr;
+
    if (strlen(buf) > 0)
       return TRUE;
    else
       return FALSE;
 }
 
-
+// DO NOT TRANSLATE ANY STRINGS IN THIS FUNCTION!
 int process_response(const char *cmd_sent, char *msg_received)
 {
    int i = 0;
@@ -335,7 +336,6 @@ int process_response(const char *cmd_sent, char *msg_received)
    if (is_hex_num)
       return HEX_DATA;
 
-// DO NOT TRANSLATE BELOW THIS LINE!
    if (strcmp(msg_received, "NODATA") == 0)
       return ERR_NO_DATA;
    if (strcmp(msg_received, "BUSBUSY") == 0 ||
@@ -352,17 +352,19 @@ int process_response(const char *cmd_sent, char *msg_received)
        strcmp(msg_received, "BUSINIT:...FBERROR") == 0)
       return BUS_ERROR;
    if (strcmp(msg_received, "BUSINIT:ERROR") == 0 ||
-       strcmp(msg_received, "BUSINIT:...ERROR") == 0 ||
-       strcmp(msg_received, "CANERROR") == 0 ||
-       strcmp(msg_received, "UNABLETOCONNECT") == 0)
-      return ERR_NO_DATA;
-   if (strcmp(msg_received, "BUFFERFULL") == 0)
-      return BUFFER_FULL;
+       strcmp(msg_received, "BUSINIT:...ERROR") == 0)
+      return BUS_INIT_ERROR;
+   if (strcmp(msg_received, "UNABLETOCONNECT") == 0)
+      return UNABLE_TO_CONNECT;
+   if (strcmp(msg_received, "CANERROR") == 0)
+      return CAN_ERROR;
    if (strcmp(msg_received, "BUS INIT:") == 0 ||
        strcmp(msg_received, "BUS INIT:...") == 0)
       return SERIAL_ERROR;
    if (strcmp(msg_received, "?") == 0)
       return UNKNOWN_CMD;
+   if (strcmp(msg_received + strlen(msg_received) - 10, "BUFFERFULL") == 0)
+      return BUFFER_FULL;
    if (strncmp(msg_received, "ELM320", 6) == 0)
       return INTERFACE_ELM320;
    if (strncmp(msg_received, "ELM322", 6) == 0)
@@ -376,32 +378,42 @@ int process_response(const char *cmd_sent, char *msg_received)
 }
 
 
-void display_error_message(int error)
+int display_error_message(int error, int retry)
 {
+   char buf[32];
+   
    switch (error)
    {
       case BUS_ERROR:
-         alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, "OK", NULL, 0, 0);
-         break;
+         return alert("Bus Error: OBDII bus is shorted to Vbatt or Ground.", NULL, NULL, (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
 
       case BUS_BUSY:
-         alert("OBD Bus Busy. Try again.", NULL, NULL, "OK", NULL, 0, 0);
-         break;
-         
+         return alert("OBD Bus Busy. Try again.", NULL, NULL, (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
+
+      case BUS_INIT_ERROR:
+         return alert("OBD Bus Init Error. Please check connection to the vehicle,", "make sure the vehicle is OBD-II compliant,", "and the ignition is ON.", (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
+
+      case UNABLE_TO_CONNECT:
+         return alert("Unable to connect to the OBD bus. Please check connection to the vehicle,", "make sure the vehicle is OBD-II compliant,", "and the ignition is ON.", (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
+
+      case CAN_ERROR:
+         return alert("CAN Error. Please check connection to the vehicle,", "make sure the vehicle is OBD-II compliant,", "and the ignition is ON.", (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
+
       case DATA_ERROR:
       case DATA_ERROR2:
-         alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable and try again.", "OK", NULL, 0, 0);
-         break;
-         
+         return alert("Data Error: there has been a loss of data.", "You may have a bad connection to the vehicle,", "check the cable and try again.", (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
+
       case BUFFER_FULL:
-         alert("Hardware data buffer overflow.", NULL, NULL, "OK", NULL, 0, 0);
-         break;
+         return alert("Hardware data buffer overflow.", NULL, NULL, "OK", NULL, 0, 0);
 
       case SERIAL_ERROR:
       case UNKNOWN_CMD:
       case RUBBISH:
-         alert("Serial Link Error: please check connection", "between computer and OBD interface.", NULL, "OK", NULL, 0, 0);
-         break;
+         return alert("Serial Link Error: please check connection", "between computer and scan tool.", NULL, (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
+
+      default:
+         sprintf(buf, "Unknown error occured: %i", error);
+         return alert(buf, NULL, NULL, (retry) ? "Retry" : "OK", (retry) ? "Cancel" : NULL, 0, 0);
    }
 }
 
