@@ -470,7 +470,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                      else  // all other errors
                         status = display_error_message(status, TRUE);
 
-                     if (status = 1)
+                     if (status == 1)
                      {
                         state = OBD_INFO_START;
                         break;
