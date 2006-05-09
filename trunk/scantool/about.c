@@ -185,7 +185,7 @@ void format_id_string(char *str)
 // OBD info getter states
 #define OBD_INFO_IDLE         0
 #define OBD_INFO_START        1
-#define OBD_INFO_TX_ATI       2
+#define OBD_INFO_TX_0100      2
 #define OBD_INFO_WAIT_ATZ     3
 #define OBD_INFO_ECU_TIMEOUT  4
 #define OBD_INFO_WAIT_0100    5
@@ -221,19 +221,19 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                strcpy(obd_protocol, empty_string);
                strcpy(obd_system, empty_string);
                retries = 0;
-               state = OBD_INFO_TX_ATI;
+               state = OBD_INFO_TX_0100;
                return D_REDRAW;
 
-            case OBD_INFO_TX_ATI:
-               if (serial_timer_running) // and if serial timer is running
+            case OBD_INFO_TX_0100:
+               if (serial_timer_running)
                {
-                  // wait until we either get a prompt or the timer times out
+                  // wait until we either get a prompt or the serial timer times out
                   while ((read_comport(buf) != PROMPT) && !serial_time_out)
                      ;
                }
                
                send_command("ati"); // get chip ID
-               start_serial_timer(AT_TIMEOUT);  // start serial timer
+               start_serial_timer(AT_TIMEOUT);
                device = 0;
                response[0] = 0;
 
@@ -252,7 +252,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   if (status == UNKNOWN_CMD)
                   {
                      send_command("atz"); // reset chip
-                     start_serial_timer(ATZ_TIMEOUT);  // start serial timer
+                     start_serial_timer(ATZ_TIMEOUT);
                      response[0] = 0;
                      state = OBD_INFO_WAIT_ATZ;
                   }
@@ -264,7 +264,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                      if ((device = status) == INTERFACE_ELM327)
                      {
                         send_command("at@1"); // get mfr string
-                        start_serial_timer(AT_TIMEOUT);  // start serial timer
+                        start_serial_timer(AT_TIMEOUT);
                         response[0] = 0;
 
                         while ((status = read_comport(buf)) != PROMPT && !serial_time_out)
@@ -282,20 +282,21 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                            strcpy(obd_mfr, response);
                            
                            send_command("atsp0");
-                           start_serial_timer(AT_TIMEOUT);  // start serial timer
+                           start_serial_timer(AT_TIMEOUT);
 
                            while ((status = read_comport(buf)) != PROMPT && !serial_time_out)
                               ;
 
-                           if (status == PROMPT)  // if serial timeout
+                           if (status == PROMPT)
                            {
                               start_serial_timer(ECU_TIMEOUT);
                               strcpy(obd_protocol, "waiting for ECU timeout...");
                               state = OBD_INFO_ECU_TIMEOUT;
                               return D_REDRAW;
                            }
-                           else
+                           else  // if serial timeout
                            {
+                              stop_serial_timer();
                               if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                                  state = OBD_INFO_START;
                               else
@@ -306,8 +307,9 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                               }
                            }
                         }
-                        else
+                        else  // if serial timeout
                         {
+                           stop_serial_timer();
                            if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                               state = OBD_INFO_START;
                            else
@@ -322,21 +324,21 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                         strcpy(obd_mfr, "N/A");
                         
                      send_command("0100");
-                     start_serial_timer(OBD_REQUEST_TIMEOUT);  // start serial timer
+                     start_serial_timer(OBD_REQUEST_TIMEOUT);
                      response[0] = 0;
                      strcpy(obd_protocol, "detecting...");
                      state = OBD_INFO_WAIT_0100;
                      return D_REDRAW;
                   }
                }
-               else
+               else  // if serial timeout
                {
                   stop_serial_timer();
                   if (retries < OBD_INFO_MAX_RETRIES)
                   {
                      retries++;
                      sprintf(obd_interface, "retrying (%i)...", retries);
-                     state = OBD_INFO_TX_ATI;
+                     state = OBD_INFO_TX_0100;
                      return D_REDRAW;
                   }
                   else
@@ -376,7 +378,7 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   else
                   {
                      send_command("0100");
-                     start_serial_timer(OBD_REQUEST_TIMEOUT);  // start serial timer
+                     start_serial_timer(OBD_REQUEST_TIMEOUT);
                      response[0] = 0;
                      strcpy(obd_protocol, "detecting...");
                      state = OBD_INFO_WAIT_0100;
@@ -384,9 +386,9 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   
                   return D_REDRAW;
                }
-               else if (serial_time_out) // if the timer timed out
+               else if (serial_time_out)
                {
-                  stop_serial_timer(); // stop the timer
+                  stop_serial_timer();
                   if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                      state = OBD_INFO_START;
                   else
@@ -399,11 +401,11 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                break;
 
             case OBD_INFO_ECU_TIMEOUT:
-               if (serial_time_out) // if the timer timed out
+               if (serial_time_out)
                {
-                  stop_serial_timer(); // stop the timer
+                  stop_serial_timer();
                   send_command("0100");
-                  start_serial_timer(OBD_REQUEST_TIMEOUT);  // start serial timer
+                  start_serial_timer(OBD_REQUEST_TIMEOUT);
                   response[0] = 0;
                   strcpy(obd_protocol, "detecting...");
                   state = OBD_INFO_WAIT_0100;
@@ -429,12 +431,12 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                      else
                      {
                         send_command("atdpn");
-                        start_serial_timer(AT_TIMEOUT);  // start serial timer
+                        start_serial_timer(AT_TIMEOUT);
                         response[0] = 0;
 
                         while ((status = read_comport(buf)) != PROMPT && !serial_time_out)
                         {
-                           if(status == DATA) // if new data detected in com port buffer
+                           if (status == DATA) // if new data detected in com port buffer
                               strcat(response, buf); // append contents of buf to response
                         }
 
@@ -447,8 +449,9 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                            status = (response[0] == 'A') ? response[1] : response[0];
                            strcpy(obd_protocol, get_protocol_string(INTERFACE_ELM327, status - 48));
                         }
-                        else
+                        else // if serial timeout
                         {
+                           stop_serial_timer();
                            if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                               state = OBD_INFO_START;
                            else
@@ -460,9 +463,14 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                         }
                      }
                   }
-                  else if (status == ERR_NO_DATA)
+                  else
                   {
-                     if (alert("There may have been a loss of connection.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "&Retry", "&Cancel", 'r', 'c') == 1)
+                     if (status == ERR_NO_DATA || status == UNABLE_TO_CONNECT)
+                        status = alert("There may have been a loss of connection.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "&Retry", "&Cancel", 'r', 'c');
+                     else  // all other errors
+                        status = display_error_message(status, TRUE);
+
+                     if (status = 1)
                      {
                         state = OBD_INFO_START;
                         break;
@@ -474,28 +482,17 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                         return D_REDRAW;
                      }
                   }
-                  else
-                  {
-                     if (alert("Communication error detected", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
-                        state = OBD_INFO_START;
-                     else
-                     {
-                        clear_obd_info();
-                        state = OBD_INFO_IDLE;
-                        return D_REDRAW;
-                     }
-                  }
 
                   send_command("011C");
-                  start_serial_timer(OBD_REQUEST_TIMEOUT);  // start serial timer
+                  start_serial_timer(OBD_REQUEST_TIMEOUT);
                   response[0] = 0;
                   strcpy(obd_system, "detecting...");
                   state = OBD_INFO_WAIT_011C;
                   return D_REDRAW;
                }
-               else if (serial_time_out) // if the timer timed out
+               else if (serial_time_out)
                {
-                  stop_serial_timer(); // stop the timer
+                  stop_serial_timer();
                   if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                      state = OBD_INFO_START;
                   else
@@ -520,21 +517,21 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
 
                   if (status == HEX_DATA)
                   {
-                     if (find_valid_response(buf, response, "41", NULL))
+                     if (find_valid_response(buf, response, "411C", NULL))
                      {
                         buf[6] = 0;  // solves problem where response is padded with zeroes
-                        obd_requirements_formula((int)strtol(buf + 4, 0, 16), buf); //plug the value into formula
+                        obd_requirements_formula((int)strtol(buf + 4, NULL, 16), buf);  // get OBD requirements string
                         strcpy(obd_system, buf);
                      }
                   }
                   else if (status == ERR_NO_DATA)
                      strcpy(obd_system, "N/A");
-                  else
+                  else  // other errors
                   {
-                     if (alert("Communication error detected", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
+                     if (display_error_message(status, FALSE) == 1)
                      {
                         state = OBD_INFO_START;
-                        break;;
+                        break;
                      }
                      else
                         clear_obd_info();
@@ -543,9 +540,9 @@ int obd_info_getter_proc(int msg, DIALOG *d, int c)
                   state = OBD_INFO_IDLE;
                   return D_REDRAW;
                }
-               else if (serial_time_out) // if the timer timed out
+               else if (serial_time_out)
                {
-                  stop_serial_timer(); // stop the timer
+                  stop_serial_timer();
                   if (alert("Connection to interface was lost", NULL, NULL, "&Retry", "&Cancel", 'r', 'c') == 1)
                      state = OBD_INFO_START;
                   else
