@@ -172,6 +172,7 @@ void trouble_codes_simulator(int show)
    {
       clear_trouble_codes();
       num_of_codes_reported = 0;
+      mil_is_on = FALSE;
    }
 
    broadcast_dialog_message(MSG_READY, 0);
