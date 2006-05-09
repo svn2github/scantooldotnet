@@ -1,5 +1,6 @@
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 #include "globals.h"
 #include "serial.h"
 #include "options.h"
@@ -341,7 +342,6 @@ int mil_text_proc(int msg, DIALOG *d, int c)
 int simulate_proc(int msg, DIALOG *d, int c)
 {
    int ret;
-   int i;
 
    switch (msg)
    {
