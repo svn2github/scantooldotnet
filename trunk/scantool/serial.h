@@ -52,11 +52,13 @@
 #define BUFFER_FULL        9
 #define SERIAL_ERROR       10
 #define UNKNOWN_CMD        11
-#define INTERFACE_ELM320   12
-#define INTERFACE_ELM322   13
-#define INTERFACE_ELM323   14
-#define INTERFACE_ELM327   15
-#define RUBBISH            16
+#define RUBBISH            12
+
+#define INTERFACE_ID       13
+#define INTERFACE_ELM320   13
+#define INTERFACE_ELM322   14
+#define INTERFACE_ELM323   15
+#define INTERFACE_ELM327   16
 
 // timeouts
 #define OBD_REQUEST_TIMEOUT   8500
