@@ -43,22 +43,25 @@
 #define HEX_DATA           0
 #define BUS_BUSY           1
 #define BUS_ERROR          2
-#define DATA_ERROR         3
-#define DATA_ERROR2        4
-#define ERR_NO_DATA        5
-#define BUFFER_FULL        6
-#define SERIAL_ERROR       7
-#define UNKNOWN_CMD        8
-#define INTERFACE_ELM320   9
-#define INTERFACE_ELM322   10
-#define INTERFACE_ELM323   11
-#define INTERFACE_ELM327   12
-#define RUBBISH            13
+#define BUS_INIT_ERROR     3
+#define UNABLE_TO_CONNECT  4
+#define CAN_ERROR          5
+#define DATA_ERROR         6
+#define DATA_ERROR2        7
+#define ERR_NO_DATA        8
+#define BUFFER_FULL        9
+#define SERIAL_ERROR       10
+#define UNKNOWN_CMD        11
+#define INTERFACE_ELM320   12
+#define INTERFACE_ELM322   13
+#define INTERFACE_ELM323   14
+#define INTERFACE_ELM327   15
+#define RUBBISH            16
 
 // timeouts
-#define OBD_REQUEST_TIMEOUT   8000
-#define ATZ_TIMEOUT           1200
-#define AT_TIMEOUT            130
+#define OBD_REQUEST_TIMEOUT   8500
+#define ATZ_TIMEOUT           1500
+#define AT_TIMEOUT            150
 #define ECU_TIMEOUT           5000
 
 // function prototypes
@@ -73,7 +76,7 @@ void stop_serial_timer();
 int process_response(const char *cmd_sent, char *msg_received);
 int find_valid_response(char *buf, char *response, const char *filter, char **stop);
 const char *get_protocol_string(int interface_type, int protocol_id);
-void display_error_message(int error);
+int display_error_message(int error, int retry);
 
 // variables
 volatile int serial_time_out;
