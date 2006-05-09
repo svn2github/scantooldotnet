@@ -23,8 +23,20 @@
 
 #define NUM_OF_RETRIES   3
 
-static char unknown_code_description[] = "Manufacturer-specific code.  Please refer to your vehicle's service manual for more information";
-static char unknown_pending_code_description[] = "[Pending]\nManufacturer-specific code.  Please refer to your vehicle's service manual for more information";
+#define CLEAR_CODES_WARNING \
+"This will reset the MIL and clear all emission-related diagnostic information, including:\n\
+   - Diagnostic trouble codes\n\
+   - Freeze frame data\n\
+   - Oxygen sensor test data\n\
+   - Status of system monitoring tests\n\
+   - On-board monitoring tests results\n\
+   - Distance travelled while MIL activated\n\
+   - Number of warm-ups since DTCs cleared\n\
+   - Distance travelled since DTCs cleared\n\
+   - Engine run time while MIL activated\n\
+   - Time since DTCs cleared\n\
+Other manufacturer-specific \"clearing/resetting\" actions may occur. The loss of data may cause \
+the vehicle to run poorly for a short period of time while the system recalibrates itself."
 
 typedef struct TROUBLE_CODE
 {
@@ -35,6 +47,10 @@ typedef struct TROUBLE_CODE
    struct TROUBLE_CODE *next;
 } TROUBLE_CODE;
 
+static char mfr_code_description[] = "Manufacturer-specific code.  Please refer to your vehicle's service manual for more information";
+static char mfr_pending_code_description[] = "[Pending]\nManufacturer-specific code.  Please refer to your vehicle's service manual for more information";
+static char code_no_description[] = "";
+static char pending_code_no_description[] = "[Pending]";
 
 static int num_of_codes_reported = 0;
 static int current_code_index;
@@ -53,6 +69,7 @@ static int tr_code_proc(int msg, DIALOG *d, int c);
 static int mil_status_proc(int msg, DIALOG *d, int c);
 static int mil_text_proc(int msg, DIALOG *d, int c);
 static int simulate_proc(int msg, DIALOG *d, int c);
+static int is_mfr_code(const char *code);
 static int num_of_codes_proc(int msg, DIALOG *d, int c);
 static int code_list_proc(int msg, DIALOG *d, int c);
 static char *code_list_getter(int index, int *list_size);
@@ -77,10 +94,10 @@ static DIALOG read_codes_dialog[] =
    /* (proc)              (x)  (y)  (w)  (h)  (fg)    (bg)           (key) (flags) (d1) (d2) (dp)                                   (dp2) (dp3) */
    { d_clear_proc,        0,   0,   0,   0,   0,       C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { d_box_proc,          25,  25,  112, 24,  C_BLACK, C_DARK_GRAY,   0,    0,      0,   0,   NULL,                                  NULL, NULL },
+   { code_list_proc,      25,  96,  112, 208, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   code_list_getter,                      NULL, NULL },
    { caption_proc,        81,  28,  54,  19,  C_WHITE, C_TRANSP,      0,    0,      0,   0,   "Current DTC",                         NULL, NULL },
    { d_box_proc,          25,  49,  112, 40,  C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { current_code_proc,   81,  57,  54,  24,  C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   NULL,                                  NULL, NULL },
-   { code_list_proc,      25,  96,  112, 208, C_BLACK, C_LIGHT_GRAY,  0,    0,      0,   0,   code_list_getter,                      NULL, NULL },
    { d_box_proc,          25,  311, 112, 64,  C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { num_of_codes_proc,   81,  319, 54,  24,  C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                  NULL, NULL },
    { st_ctext_proc,       80,  351, 55,  20,  C_BLACK, C_TRANSP,      0,    0,      0,   0,   "DTCs",                                NULL, NULL },
@@ -103,15 +120,15 @@ static DIALOG read_codes_dialog[] =
 
 static DIALOG confirm_clear_dialog[] =
 {
-   /* (proc)             (x)  (y)  (w)  (h)  (fg)     (bg)          (key) (flags) (d1) (d2) (dp)                                 (dp2) (dp3) */
-   { d_shadow_box_proc,  0,   0,   327, 248, C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                NULL, NULL },
-   { d_shadow_box_proc,  0,   0,   327, 24,  C_BLACK, C_DARK_GRAY,   0,    0,      0,   0,   NULL,                                NULL, NULL },
-   { caption_proc,       164, 2,   160, 19,  C_WHITE, C_TRANSP,      0,    0,      0,   0,   "Clear Trouble Codes",               NULL, NULL },
-   { super_textbox_proc, 24,  32,  279, 136, C_BLACK, C_WHITE,       0,    0,      0,   0,   "This will reset the MIL, clear any existing trouble codes, freeze frame data, and on-board monitoring test results. The loss of data may cause the vehicle to run poorly for a short period of time while the system recalibrates itself.", NULL, NULL },
-   { st_ctext_proc,      163, 169, 161, 24,  C_RED,   C_TRANSP,      0,    0,      0,   0,   "Are you sure you want to do this?", NULL, NULL },
-   { d_button_proc,      16,  198, 140, 35,  C_BLACK, C_GREEN,       'y',  D_EXIT, 0,   0,   "&Yes, I am sure",                   NULL, NULL },
-   { d_button_proc,      171, 198, 140, 35,  C_BLACK, C_DARK_YELLOW, 'n',  D_EXIT, 0,   0,   "&No, cancel",                       NULL, NULL },
-   { NULL,               0,   0,   0,   0,   0,     0,               0,    0,      0,   0,   NULL,                                NULL, NULL }
+   /* (proc)             (x)  (y)  (w)  (h)  (fg)     (bg)           (key) (flags) (d1) (d2) (dp)                                 (dp2) (dp3) */
+   { d_shadow_box_proc,  0,   0,   440, 424, C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                NULL, NULL },
+   { d_shadow_box_proc,  0,   0,   440, 24,  C_BLACK, C_DARK_GRAY,   0,    0,      0,   0,   NULL,                                NULL, NULL },
+   { caption_proc,       220, 2,   218, 19,  C_WHITE, C_TRANSP,      0,    0,      0,   0,   "Clear Trouble Codes",               NULL, NULL },
+   { super_textbox_proc, 16,  32,  408, 296, C_BLACK, C_WHITE,       0,    0,      0,   0,   CLEAR_CODES_WARNING,                 NULL, NULL },
+   { st_ctext_proc,      220, 336, 204, 24,  C_RED,   C_TRANSP,      0,    0,      0,   0,   "Are you sure you want to do this?", NULL, NULL },
+   { d_button_proc,      72,  372, 140, 35,  C_BLACK, C_GREEN,       'y',  D_EXIT, 0,   0,   "&Yes, I am sure",                   NULL, NULL },
+   { d_button_proc,      228, 372, 140, 35,  C_BLACK, C_DARK_YELLOW, 'n',  D_EXIT, 0,   0,   "&No, cancel",                       NULL, NULL },
+   { NULL,               0,   0,   0,   0,   0,       0,             0,    0,      0,   0,   NULL,                                NULL, NULL }
 }; 
 
 
@@ -174,6 +191,7 @@ int current_code_proc(int msg, DIALOG *d, int c)
             d->dp = empty_string;
          else
             d->dp = get_trouble_code(current_code_index)->code;
+
          return D_REDRAWME;
       
       case MSG_DRAW:
@@ -187,21 +205,31 @@ int current_code_proc(int msg, DIALOG *d, int c)
 
 int tr_description_proc(int msg, DIALOG *d, int c)   // procedure which displays a textbox
 {
+   TROUBLE_CODE *dtc;
+
    switch (msg)
    {
       case MSG_START:
          d->dp = empty_string;
          break;
 
-      case MSG_READY:   // when it receives MSG_READY
+      case MSG_READY:
          if (get_number_of_codes() == 0)
             d->dp = empty_string;
-         else if (!(d->dp = get_trouble_code(current_code_index)->description))
+         else
          {
-            if (get_trouble_code(current_code_index)->pending)
-               d->dp = unknown_pending_code_description;
+            if (!(dtc = get_trouble_code(current_code_index)))
+               d->dp = empty_string;
             else
-               d->dp = unknown_code_description;
+            {
+               if (!(d->dp = dtc->description))
+               {
+                  if (is_mfr_code(dtc->code))
+                     d->dp = (dtc->pending) ? mfr_pending_code_description : mfr_code_description;
+                  else
+                     d->dp = (dtc->pending) ? pending_code_no_description : code_no_description;
+               }
+            }
          }
          return D_REDRAWME;
    }
@@ -218,7 +246,7 @@ int tr_solution_proc(int msg, DIALOG *d, int c)   // procedure which displays a 
          d->dp = empty_string;
          break;
       
-      case MSG_READY:   // when it receives MSG_READY
+      case MSG_READY:
          if (get_number_of_codes() == 0)
             d->dp = empty_string;
          else if(!(d->dp = get_trouble_code(current_code_index)->solution))
@@ -313,6 +341,7 @@ int mil_text_proc(int msg, DIALOG *d, int c)
 int simulate_proc(int msg, DIALOG *d, int c)
 {
    int ret;
+   int i;
 
    switch (msg)
    {
@@ -336,7 +365,7 @@ int simulate_proc(int msg, DIALOG *d, int c)
    }
    
    ret = d_check_proc(msg, d, c);
-   
+
    if ((d->flags & D_SELECTED) && (d->d2 == 0))
    {
       d->d2 = 1;
@@ -349,7 +378,7 @@ int simulate_proc(int msg, DIALOG *d, int c)
       simulate = FALSE;
       trouble_codes_simulator(FALSE);
    }
-      
+
    return ret;
 }   
 
@@ -732,6 +761,35 @@ char* code_list_getter(int index, int *list_size)
 }
 
 
+// Mfr./SAE/ISO ranges are defined in SAE J2012 standard
+int is_mfr_code(const char *code)
+{
+   int num;
+
+   if (!code)
+      return FALSE;
+      
+   switch (code[1])
+   {
+      case '0':
+         return FALSE;
+      case '1':
+         return TRUE;
+      case '2':
+         if (code[0] == 'P')
+            return FALSE;
+         return TRUE;
+      case '3':
+         num = strtol(code + 1, NULL, 16);
+         if (code[0] == 'P' && num >= 0x3000 && num <= 0x3399)
+            return TRUE;
+         return FALSE;
+   }
+   
+   return TRUE;
+}
+
+
 int handle_num_of_codes(char *vehicle_response)
 {
    int temp;
@@ -741,10 +799,10 @@ int handle_num_of_codes(char *vehicle_response)
 
    while (*response)
    {
-      if (find_valid_response(buf, response, "41", &response))
+      if (find_valid_response(buf, response, "4101", &response))
       {
          buf[6] = 0;
-         temp = (int)strtol(buf + 4, 0, 16); // convert hex ascii string to integer
+         temp = (int)strtol(buf + 4, NULL, 16); // convert hex ascii string to integer
          if (temp & 0x80)
             mil_is_on = TRUE; // get MIL status from temp
          ret = ret + (temp & 0x7F);
@@ -757,54 +815,129 @@ int handle_num_of_codes(char *vehicle_response)
 }
 
 
-int handle_read_codes(char *vehicle_response, int pending)
+int parse_dtcs(const char *response, int pending)
 {
    char code_letter[] = "PCBU";
-   int trouble_codes_count = 0;
+   int dtc_count = 0;
    int i, j;
-   char *mode;
-   char response[48];
    TROUBLE_CODE temp_trouble_code;
-   
-   mode = (pending) ? "47" : "43";
-   
-   while(find_valid_response(response, vehicle_response, mode, &vehicle_response))
+
+   for(i = 0; i < strlen(response); i += 4)    // read codes
    {
-      if ((strlen(response) - 2) % 4 != 0)
-         continue;
-         
-      for(i = 2; i < strlen(response); i += 4)    // read codes
+      temp_trouble_code.code[0] = ' '; // make first position a blank space
+      // begin to copy from response to temp_trouble_code.code beginning with position #1
+      for (j = 1; j < 5; j++)
+         temp_trouble_code.code[j] = response[i+j-1];
+      temp_trouble_code.code[j] = '\0';  // terminate string
+
+      if (strcmp(temp_trouble_code.code, " 0000") == 0) // if there's no trouble code,
+         break;      // break out of the for() loop
+
+      // begin with position #1 (skip blank space), convert to hex, extract first two bits
+      // use the result as an index into the code_letter array to get the corresponding code letter
+      temp_trouble_code.code[0] = code_letter[strtol(temp_trouble_code.code + 1, NULL, 16) >> 14];
+      temp_trouble_code.code[1] = (strtol(temp_trouble_code.code + 1, NULL, 16) >> 12) & 0x03;
+      temp_trouble_code.code[1] += 0x30; // convert to ASCII
+      if (pending)
       {
-         temp_trouble_code.code[0] = ' '; // make first position a blank space
-         // begin to copy from response to temp_trouble_code.code beginning with position #1
-         for (j = 1; j < 5; j++)
-            temp_trouble_code.code[j] = response[i+j-1];
-         temp_trouble_code.code[j] = '\0';  // terminate string
-         
-         if (strcmp(temp_trouble_code.code, " 0000") == 0) // if there's no trouble code,
-            break;      // break out of the for() loop
-         
-         // begin with position #1 (skip blank space), convert to hex, extract first two bits
-         // use the result as an index into the code_letter array to get the corresponding code letter
-         temp_trouble_code.code[0] = code_letter[strtol(temp_trouble_code.code + 1, 0, 16) >> 14];
-         temp_trouble_code.code[1] = (strtol(temp_trouble_code.code + 1, 0, 16) >> 12) & 0x03;
-         temp_trouble_code.code[1] += 0x30; // convert to ASCII
-         if (pending)
-         {
-            temp_trouble_code.code[5] = '*';
-            temp_trouble_code.code[6] = 0;
-            temp_trouble_code.pending = TRUE;
-         }
-         else
-            temp_trouble_code.pending = FALSE;
-         temp_trouble_code.description = NULL; // clear the corresponding description...
-         temp_trouble_code.solution = NULL;  // ..and solution
-         add_trouble_code(&temp_trouble_code);
-         trouble_codes_count++;
+         temp_trouble_code.code[5] = '*';
+         temp_trouble_code.code[6] = 0;
+         temp_trouble_code.pending = TRUE;
       }
-   }  // end of while(), finished extracting codes
+      else
+         temp_trouble_code.pending = FALSE;
+      temp_trouble_code.description = NULL; // clear the corresponding description...
+      temp_trouble_code.solution = NULL;  // ..and solution
+      add_trouble_code(&temp_trouble_code);
+      dtc_count++;
+   }
    
-   return trouble_codes_count; // return the actual number of codes read
+   return dtc_count;
+}
+
+
+/* NOTE:
+ *  ELM327 multi-message CAN responses are parsed using the following assumptions:
+ *   - max 8 ECUs (per ISO15765-4 standard)
+ *   - max 51 DTCs per ECU - there is no way to tell which ECU a response belongs to when the message counter wraps (0-F)
+ *   - ECUs respond sequentially (i.e. 2nd msg from the 1st ECU to respond will come before 2nd msg from the 2nd ECU to respond)
+ *     This has been observed imperically (in fact most of the time 2nd ECU lags several messages behind the 1st ECU),
+ *     this should be true for most cases due to arbitration, unless 1st ECU takes a very long time to prepare next message,
+ *     which should not happen. There is no other choice at the moment, unless we turn on headers, but that would mean rewriting
+ *     whole communication paradigm.
+ */
+
+int handle_read_codes(char *vehicle_response, int pending)
+{
+   int dtc_count = 0;
+   char *start = vehicle_response;
+   char filter[3];
+   char msg[48];
+   int can_resp_cnt = 0;
+   int can_msg_cnt = 0;
+   int can_resp_len[8];
+   char *can_resp_buf[8];  // 8 CAN ECUs max
+   int buf_len, max_len, trim;
+   int i, j;
+   
+   // First, look for non-CAN and single-message CAN responses
+   strcpy(filter, (pending) ? "47" : "43");
+   while (find_valid_response(msg, start, filter, &start))
+   {
+      if (strlen(msg) == 4)  // skip '4X 00' CAN responses
+         continue;
+      // if even number of bytes (CAN), skip first 2 bytes, otherwise, skip 1 byte
+      j = (strlen(msg)/2) & 0x01;
+      i = (((strlen(msg)/2) & 0x01) == 0) ? 4 : 2;
+      dtc_count += parse_dtcs(msg + i, pending);
+   }
+
+   // Look for CAN multi-message responses
+   start = vehicle_response;
+   while (find_valid_response(msg, start, "", &start))  // step through all responses
+   {
+      if (strlen(msg) == 3)  // we're looking for 3-byte response length messages
+      {
+         can_resp_len[can_resp_cnt] = strtol(msg, NULL, 16);  // get total length for the response
+         can_resp_buf[can_resp_cnt] = calloc((can_resp_len[can_resp_cnt]-2)*2 + 1, sizeof(char));
+         i = ceil((float)(can_resp_len[can_resp_cnt] + 1) / 7);  // calculate number of messages necessary to transmit specified number of bytes
+         can_msg_cnt = MAX(can_msg_cnt, i);  // calculate max number of messages for any response
+         can_resp_cnt++;
+      }
+   }
+   
+   for (i = 0; i < can_msg_cnt; i++)
+   {
+      j = 0;
+      start = vehicle_response;
+      sprintf(filter, "%X:", i);
+      while (find_valid_response(msg, start, filter, &start))
+      {
+         for (; j < can_resp_cnt; j++)  // find next response that is not full
+         {
+            buf_len = strlen(can_resp_buf[j]);
+            max_len = (can_resp_len[j]-2)*2;
+            if (buf_len < max_len)
+            {
+               // first response -- skip '0:4XXX', all other -- skip 'X:'
+               // first response -- 6 bytes total, all other -- 7 bytes
+               // if this is last message for a response, trim padding
+               trim = (buf_len + strlen(msg) - 2 >= max_len) ? buf_len + strlen(msg) - 2 - max_len : 0;
+               strncat(can_resp_buf[j], msg + ((i == 0) ? 6 : 2), (i == 0) ? 8 : 14 - trim);
+               j++;
+               break;
+            }
+         }
+      }
+   }
+   
+   for (i = 0; i < can_resp_cnt; i++)
+   {
+      dtc_count += parse_dtcs(can_resp_buf[i], pending);
+      free(can_resp_buf[i]);
+   }
+   
+   return dtc_count; // return the actual number of codes read
 }
 
 
@@ -924,9 +1057,9 @@ void handle_errors(int error, int operation)
 {
    static int retry_attempts = NUM_OF_RETRIES;
 
-   if(error == BUS_ERROR) // if we received "BUS ERROR"
+   if (error == BUS_ERROR || error == UNABLE_TO_CONNECT || error == BUS_INIT_ERROR)
    {
-      display_error_message(BUS_ERROR);
+      display_error_message(error, FALSE);
       retry_attempts = NUM_OF_RETRIES;
       broadcast_dialog_message(MSG_READY, 0); // tell everyone that we're done
    }
@@ -950,11 +1083,11 @@ void handle_errors(int error, int operation)
       }
       else
       {
-         display_error_message(error);
+         display_error_message(error, FALSE);
          retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
          broadcast_dialog_message(MSG_READY, 0); // tell everyone that we're done
       }
-   }     // end of BUS_BUSY, DATA_ERROR, DATA_ERROR2, SERIAL_ERROR, and RUBBISH
+   }
 }
 
 
