@@ -926,11 +926,11 @@ int sensor_proc(int msg, DIALOG *d, int c)
                      return D_O_K;
                   }
                   
-                  if(response_status == DATA) // if data detected in com port buffer
+                  if (response_status == DATA) // if data detected in com port buffer
                   {
                      strcat(vehicle_response, buf); // append contents of buf to vehicle_response
                   }
-                  else if(response_status == PROMPT) // if '>' detected
+                  else if (response_status == PROMPT) // if '>' detected
                   {
                      device_connected = TRUE;
                      num_of_sensors_timed_out = 0;
@@ -951,7 +951,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
                         {
                            calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
                            buf[4 + sensor->bytes * 2] = 0;  // solves problem where response is padded with zeroes (i.e., '41 05 7C 00 00 00')
-                           sensor->formula((int)strtol(buf + 4, 0, 16), buf); //plug the value into formula
+                           sensor->formula((int)strtol(buf + 4, NULL, 16), buf); //plug the value into formula
                            strcpy(sensor->screen_buf, buf);  // and copy result in screen buffer
                            /* if current_sensor is the last sensor, set it to 0; otherwise current_sensor++ */
                            current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1;
@@ -966,31 +966,30 @@ int sensor_proc(int msg, DIALOG *d, int c)
                      strcpy(sensor->screen_buf, "N/A");
                      calculate_refresh_rate(SENSOR_NA); // calculate instantaneous/average refresh rates
 
-                     if(response_type == ERR_NO_DATA) // if we received "NO DATA", "N/A" will be printed
+                     if (response_type == ERR_NO_DATA) // if we received "NO DATA", "N/A" will be printed
                      {
                         current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1; // next time poll next sensor
                         retry_attempts = NUM_OF_RETRIES;
                      }
-                     else if(response_type == BUS_ERROR) // if we received "BUS ERROR"
+                     else if (response_type == BUS_ERROR || response_type == UNABLE_TO_CONNECT || response_type == BUS_INIT_ERROR)
                      {
-                        display_error_message(BUS_ERROR);
+                        display_error_message(response_type, FALSE);
                         retry_attempts = NUM_OF_RETRIES;
                      }
-                     // if we received "BUS BUSY", "DATA ERROR", "<DATA ERROR", SERIAL_ERROR, or RUBBISH,
-                     // try to re-send the request, do nothing if successful and alert user if failed:
+                     // for other errors, try to re-send the request, do nothing if successful and alert user if failed
                      else
                      {
-                        if(retry_attempts > 0)
+                        if (retry_attempts > 0)
                         {
                            retry_attempts--;
                            return D_O_K;
                         }
                         else
                         {
-                           display_error_message(response_type);
+                           display_error_message(response_type, FALSE);
                            retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
                         }
-                     } // end of BUS_BUSY, DATA_ERROR, DATA_ERROR2, ERIAL_ERROR, and RUBBISH
+                     }
 
                      return D_REDRAWME; //tell the parent control to redraw itself
                   }
