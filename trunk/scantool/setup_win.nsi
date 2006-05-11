@@ -139,15 +139,14 @@ SectionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SEC02} "Select this option to install C source files."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
+Function un.onInit
+  MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 "Are you sure you want to completely remove $(^Name) and all of its components?" IDYES +2
+  Abort
+FunctionEnd
 
 Function un.onUninstSuccess
   HideWindow
   MessageBox MB_ICONINFORMATION|MB_OK "$(^Name) was successfully removed from your computer."
-FunctionEnd
-
-Function un.onInit
-  MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 "Are you sure you want to completely remove $(^Name) and all of its components?" IDYES +2
-  Abort
 FunctionEnd
 
 Section Uninstall
