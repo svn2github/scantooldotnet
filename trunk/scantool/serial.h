@@ -61,9 +61,9 @@
 #define INTERFACE_ELM327   16
 
 // timeouts
-#define OBD_REQUEST_TIMEOUT   8500
+#define OBD_REQUEST_TIMEOUT   9900
 #define ATZ_TIMEOUT           1500
-#define AT_TIMEOUT            150
+#define AT_TIMEOUT            130
 #define ECU_TIMEOUT           5000
 
 // function prototypes
