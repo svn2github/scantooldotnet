@@ -7,7 +7,7 @@
 #define SCANTOOL_VERSION_STR      "1.12"
 #define SCANTOOL_VERSION_EX_STR   "1.12"
 #define SCANTOOL_YEAR_STR         "2006"
-#define SCANTOOL_DATE             20060509    /* yyyymmdd */
+#define SCANTOOL_DATE             20060510    /* yyyymmdd */
 
 #ifdef ALLEGRO_WINDOWS
    #define SCANTOOL_PLATFORM_STR   "Windows"
