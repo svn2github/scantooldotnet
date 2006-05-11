@@ -1,6 +1,6 @@
 *********************************************************************
          ScanTool.net OBD-II Software v1.12 for ElmScan
-         Copyright (C) 2005 ScanTool.net LLC, All Rights Reserved
+         Copyright (C) 2006 ScanTool.net LLC, All Rights Reserved
 *********************************************************************
 
 ======================================
@@ -21,7 +21,7 @@ more details.
 
 ScanTool.net OBD-II Software for ElmScan is free software that allows you to 
 use your computer and an inexpensive hardware interface to read information 
-from your car's computer.  Version 1.10 allows you to read trouble codes and 
+from your car's computer. Current version allows you to read trouble codes and 
 see their descriptions, clear the codes and turn off the "Check Engine" light, 
 and display real-time sensor data such as RPM, Engine Load, Vehicle Speed, 
 Coolant Temperature, and Timing Advance.
@@ -63,7 +63,7 @@ Support Page located at http://www.scantool.net/support
              CAN DTC responses are now handled properly
              SAE-defined DTCs with no description are now not identified as manufacturer-defined
              Expanded Clear Codes warning to describe all things that will be cleared
-             A few small bugfixes
+             Misc. bug fixes
    v1.11  -  Fixed a bug in Display Codes dialog, where the program would crash under some conditions
              Refined "COM Port Could not be Open" error handling
    v1.10  -  Added baud rate switching
