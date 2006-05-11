@@ -25,7 +25,7 @@
 #define NUM_OF_RETRIES   3
 
 #define CLEAR_CODES_WARNING \
-"This will reset the MIL and clear all emission-related diagnostic information, including:\n\
+"This will reset the MIL and clear all emission-related diagnostic information, including:\n\n\
    - Diagnostic trouble codes\n\
    - Freeze frame data\n\
    - Oxygen sensor test data\n\
@@ -35,9 +35,9 @@
    - Number of warm-ups since DTCs cleared\n\
    - Distance travelled since DTCs cleared\n\
    - Engine run time while MIL activated\n\
-   - Time since DTCs cleared\n\
+   - Time since DTCs cleared\n\n\
 Other manufacturer-specific \"clearing/resetting\" actions may occur. The loss of data may cause \
-the vehicle to run poorly for a short period of time while the system recalibrates itself."
+the vehicle to run poorly for a short period of time while the ECU recalibrates itself."
 
 typedef struct TROUBLE_CODE
 {
@@ -122,13 +122,13 @@ static DIALOG read_codes_dialog[] =
 static DIALOG confirm_clear_dialog[] =
 {
    /* (proc)             (x)  (y)  (w)  (h)  (fg)     (bg)           (key) (flags) (d1) (d2) (dp)                                 (dp2) (dp3) */
-   { d_shadow_box_proc,  0,   0,   440, 424, C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                NULL, NULL },
+   { d_shadow_box_proc,  0,   0,   440, 460, C_BLACK, C_WHITE,       0,    0,      0,   0,   NULL,                                NULL, NULL },
    { d_shadow_box_proc,  0,   0,   440, 24,  C_BLACK, C_DARK_GRAY,   0,    0,      0,   0,   NULL,                                NULL, NULL },
    { caption_proc,       220, 2,   218, 19,  C_WHITE, C_TRANSP,      0,    0,      0,   0,   "Clear Trouble Codes",               NULL, NULL },
-   { super_textbox_proc, 16,  32,  408, 296, C_BLACK, C_WHITE,       0,    0,      0,   0,   CLEAR_CODES_WARNING,                 NULL, NULL },
-   { st_ctext_proc,      220, 336, 204, 24,  C_RED,   C_TRANSP,      0,    0,      0,   0,   "Are you sure you want to do this?", NULL, NULL },
-   { d_button_proc,      72,  372, 140, 35,  C_BLACK, C_GREEN,       'y',  D_EXIT, 0,   0,   "&Yes, I am sure",                   NULL, NULL },
-   { d_button_proc,      228, 372, 140, 35,  C_BLACK, C_DARK_YELLOW, 'n',  D_EXIT, 0,   0,   "&No, cancel",                       NULL, NULL },
+   { super_textbox_proc, 16,  32,  408, 332, C_BLACK, C_WHITE,       0,    0,      0,   0,   CLEAR_CODES_WARNING,                 NULL, NULL },
+   { caption_proc,       220, 372, 204, 24,  C_RED,   C_TRANSP,      0,    0,      0,   0,   "Are you sure you want to do this?", NULL, NULL },
+   { d_button_proc,      72,  408, 140, 35,  C_BLACK, C_GREEN,       'y',  D_EXIT, 0,   0,   "&Yes, I am sure",                   NULL, NULL },
+   { d_button_proc,      228, 408, 140, 35,  C_BLACK, C_DARK_YELLOW, 'n',  D_EXIT, 0,   0,   "&No, cancel",                       NULL, NULL },
    { NULL,               0,   0,   0,   0,   0,       0,             0,    0,      0,   0,   NULL,                                NULL, NULL }
 }; 
 
@@ -136,7 +136,7 @@ static DIALOG confirm_clear_dialog[] =
 int display_trouble_codes()
 {
    int ret;
-   
+
    mil_is_on = FALSE; // reset MIL status
    num_of_codes_reported = 0;
    clear_trouble_codes();
@@ -889,7 +889,6 @@ int handle_read_codes(char *vehicle_response, int pending)
       if (strlen(msg) == 4)  // skip '4X 00' CAN responses
          continue;
       // if even number of bytes (CAN), skip first 2 bytes, otherwise, skip 1 byte
-      j = (strlen(msg)/2) & 0x01;
       i = (((strlen(msg)/2) & 0x01) == 0) ? 4 : 2;
       dtc_count += parse_dtcs(msg + i, pending);
    }
