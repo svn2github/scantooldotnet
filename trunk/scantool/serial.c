@@ -338,33 +338,27 @@ int process_response(const char *cmd_sent, char *msg_received)
 
    if (strcmp(msg_received, "NODATA") == 0)
       return ERR_NO_DATA;
-   if (strcmp(msg_received, "BUSBUSY") == 0 ||
-       strcmp(msg_received, "BUSINIT:BUSBUSY") == 0 ||
-       strcmp(msg_received, "BUSINIT:...BUSBUSY") == 0)
+   if (strcmp(msg_received + strlen(msg_received) - 15, "UNABLETOCONNECT") == 0)
+      return UNABLE_TO_CONNECT;
+   if (strcmp(msg_received + strlen(msg_received) - 7, "BUSBUSY") == 0)
       return BUS_BUSY;
-   if (strcmp(msg_received, "DATAERROR") == 0 ||
-       strcmp(msg_received, "BUSINIT:DATAERROR") == 0 ||
-       strcmp(msg_received, "BUSINIT:...DATAERROR") == 0)
+   if (strcmp(msg_received + strlen(msg_received) - 9, "DATAERROR") == 0)
       return DATA_ERROR;
-   if (strcmp(msg_received, "BUSERROR") == 0 ||
-       strcmp(msg_received, "FBERROR") == 0 ||
-       strcmp(msg_received, "BUSINIT:FBERROR") == 0 ||
-       strcmp(msg_received, "BUSINIT:...FBERROR") == 0)
+   if (strcmp(msg_received + strlen(msg_received) - 8, "BUSERROR") == 0 ||
+       strcmp(msg_received + strlen(msg_received) - 7, "FBERROR") == 0)
       return BUS_ERROR;
+   if (strcmp(msg_received + strlen(msg_received) - 8, "CANERROR") == 0)
+      return CAN_ERROR;
+   if (strcmp(msg_received + strlen(msg_received) - 10, "BUFFERFULL") == 0)
+      return BUFFER_FULL;
    if (strcmp(msg_received, "BUSINIT:ERROR") == 0 ||
        strcmp(msg_received, "BUSINIT:...ERROR") == 0)
       return BUS_INIT_ERROR;
-   if (strcmp(msg_received, "UNABLETOCONNECT") == 0)
-      return UNABLE_TO_CONNECT;
-   if (strcmp(msg_received, "CANERROR") == 0)
-      return CAN_ERROR;
    if (strcmp(msg_received, "BUS INIT:") == 0 ||
        strcmp(msg_received, "BUS INIT:...") == 0)
       return SERIAL_ERROR;
    if (strcmp(msg_received, "?") == 0)
       return UNKNOWN_CMD;
-   if (strcmp(msg_received + strlen(msg_received) - 10, "BUFFERFULL") == 0)
-      return BUFFER_FULL;
    if (strncmp(msg_received, "ELM320", 6) == 0)
       return INTERFACE_ELM320;
    if (strncmp(msg_received, "ELM322", 6) == 0)
