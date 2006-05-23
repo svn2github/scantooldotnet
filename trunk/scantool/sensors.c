@@ -12,7 +12,7 @@
 
 #define SENSORS_PER_PAGE      9
 #define NUM_OF_RETRIES        3
-#define SENSORS_TO_TIME_OUT   3 //number of sensors that need to time out before the warning will be issued
+#define SENSORS_TO_TIME_OUT   2 //number of sensors that need to time out before the warning will be issued
 #define REFRESH_RATE_PRECISION 10 // how often the samples are taken, in milliseconds
 
 // Sensor states:
@@ -699,8 +699,8 @@ int toggle_all_proc(int msg, DIALOG *d, int c)
             d->d2 = 0;
             strcpy(d->dp, "All ON");
             d->bg = C_GREEN;
-            inst_refresh_rate = 0;
-            avg_refresh_rate = 0;
+            inst_refresh_rate = -1;
+            avg_refresh_rate = -1;
             broadcast_dialog_message(MSG_REFRESH, 0);
          }
          d->flags |= D_DIRTY;
@@ -797,6 +797,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
    static int num_of_sensors_timed_out = 0;
    static int ignore_device_not_connected = FALSE;
    static int retry_attempts = NUM_OF_RETRIES;
+   static int active_sensor_found = FALSE;
    static char vehicle_response[1024];
    char buf[256];
    char cmd[8];
@@ -837,6 +838,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
          {
             current_sensor = 0;
             num_of_sensors_timed_out = 0;
+            active_sensor_found = FALSE;
             new_page = TRUE;
             // page was flipped, reset refresh rate variables
             inst_refresh_rate = 0;
@@ -870,6 +872,11 @@ int sensor_proc(int msg, DIALOG *d, int c)
                sensor->enabled = FALSE;
                num_of_disabled_sensors++;
                strcpy(sensor->screen_buf, "not monitoring");
+               if (d->d1 == current_sensor)
+               {
+                  receiving_response = FALSE;
+                  stop_serial_timer();
+               }
                if (num_of_disabled_sensors == sensors_on_page) // if all of the sensors are disabled
                   num_of_sensors_timed_out = 0; // reset timeout counter
             }
@@ -948,6 +955,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
                         sprintf(cmd, "41%s", sensor->pid);
                         if (find_valid_response(buf, vehicle_response, cmd, NULL))
                         {
+                           active_sensor_found = TRUE;
                            calculate_refresh_rate(SENSOR_ACTIVE); // calculate instantaneous/average refresh rates
                            buf[4 + sensor->bytes * 2] = 0;  // solves problem where response is padded with zeroes (i.e., '41 05 7C 00 00 00')
                            sensor->formula((int)strtol(buf + 4, NULL, 16), buf); //plug the value into formula
@@ -963,7 +971,9 @@ int sensor_proc(int msg, DIALOG *d, int c)
                      }
                      
                      strcpy(sensor->screen_buf, "N/A");
-                     calculate_refresh_rate(SENSOR_NA); // calculate instantaneous/average refresh rates
+
+                     if (active_sensor_found)
+                        calculate_refresh_rate(SENSOR_NA); // calculate instantaneous/average refresh rates
 
                      if (response_type == ERR_NO_DATA) // if we received "NO DATA", "N/A" will be printed
                      {
