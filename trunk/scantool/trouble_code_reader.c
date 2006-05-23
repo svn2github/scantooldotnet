@@ -720,7 +720,7 @@ int tr_code_proc(int msg, DIALOG *d, int c)
             vehicle_response[0] = 0;
             clear_trouble_codes();
             num_of_codes_reported = 0;
-            mil_os_on = FALSE;
+            mil_is_on = FALSE;
          }
          else
             serial_time_out = TRUE;
