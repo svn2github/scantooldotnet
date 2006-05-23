@@ -6,7 +6,7 @@ ifdef DEBUGMODE
    DEFINES = -DDEBUG
 else
 ifdef RELEASE
-   CFLAGS = -Wall -Os -fexpensive-optimizations -s
+   CFLAGS = -Wall -O3 -fexpensive-optimizations -s
    AL_LIBS = -lalleg
 else
    CFLAGS = -O -Wall
