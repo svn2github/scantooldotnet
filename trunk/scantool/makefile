@@ -48,8 +48,13 @@ endif
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) -o $(BIN) $(OBJ) $(LIBS)
 
+ifdef MINGDIR
+release:
+	make RELEASE=1 STATICLINK=1
+else
 release:
 	make RELEASE=1
+endif
 
 all: $(BIN)
 
