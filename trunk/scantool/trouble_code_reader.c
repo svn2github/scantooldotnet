@@ -12,10 +12,11 @@
 #define MSG_CLEAR_CODES   MSG_USER+1
 #define MSG_READY         MSG_USER+2
 
-#define NUM_OF_CODES   0
-#define READ_CODES     1
-#define READ_PENDING   2
-#define CLEAR_CODES    3
+#define CRQ_NONE       0
+#define NUM_OF_CODES   1
+#define READ_CODES     2
+#define READ_PENDING   3
+#define CLEAR_CODES    4
 
 #define FIELD_DELIMITER     '\t'
 #define RECORD_DELIMITER    0xA
@@ -396,6 +397,7 @@ void read_codes()
 
    clear_trouble_codes();
    num_of_codes_reported = 0;
+   mil_is_on = FALSE;
    broadcast_dialog_message(MSG_READY, 0);
    broadcast_dialog_message(MSG_READ_CODES, 0);
 }
@@ -501,11 +503,13 @@ int tr_code_proc(int msg, DIALOG *d, int c)
    static int first_read_occured = FALSE;
    static int receiving_response = FALSE;    // flag, "are we receiving response?"
    static int verifying_connection = FALSE;  // flag, "are we verifying connection?"
-   static int current_request;               // NUM_OF_CODES, READ_CODES, CLEAR_CODES
-   static int temp_num_of_codes;             // temporary storage for num_of_codes
+   static int current_request = CRQ_NONE;    // NUM_OF_CODES, READ_CODES, CLEAR_CODES
    int response_status = EMPTY;              // EMPTY, DATA, PROMPT
    int response_type;                        // BUS_BUSY, BUS_ERROR, DATA_ERROR, etc.
+   int pending_codes_cnt = 0;
    char comport_buffer[256];                  // temporary storage for comport data
+   char buf1[64];
+   char buf2[64];
 
    switch (msg)
    {
@@ -518,182 +522,205 @@ int tr_code_proc(int msg, DIALOG *d, int c)
             return D_O_K;
          }
          
+         if (simulate)
+            break;
+         
          if (comport.status == READY)
          {
-            if (verifying_connection && !receiving_response)
+            if (!receiving_response)
             {
-               send_command("0100"); // send request that requires a response
-               receiving_response = TRUE; // now we're waiting for response
-               vehicle_response[0] = 0; //get buffer ready for the response
-               start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer
+               if (verifying_connection)
+               {
+                  send_command("0100"); // send request that requires a response
+                  receiving_response = TRUE; // now we're waiting for response
+                  vehicle_response[0] = 0; //get buffer ready for the response
+                  start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer
+               }
+               else if (current_request == READ_PENDING)
+               {
+                  send_command("07");   // request "pending" codes
+                  receiving_response = TRUE;     // and receiving response
+                  vehicle_response[0] = '\0';    // clear the buffer
+                  start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer...
+               }
             }
-            else if (receiving_response)
+            else
             {
                response_status = read_comport(comport_buffer);
-               
-               if (simulate && (response_status == PROMPT))
-                  serial_time_out = TRUE;
-               else if(!simulate)
+
+               if (response_status == DATA) // if data detected in com port buffer
                {
-                  if(response_status == DATA) // if data detected in com port buffer
-                  {
-                     // append contents of comport_buffer to vehicle_response:
-                     strcat(vehicle_response, comport_buffer);
-                     start_serial_timer(OBD_REQUEST_TIMEOUT);  // we got data, reset the timer
-                  }
-                  else if(response_status == PROMPT) // if ">" is detected
-                  {
-                     receiving_response = FALSE; // we're not waiting for response any more
-                     stop_serial_timer();        // stop the timer
-                     // append contents of comport_buffer to vehicle_response:
-                     strcat(vehicle_response, comport_buffer);
+                  // append contents of comport_buffer to vehicle_response:
+                  strcat(vehicle_response, comport_buffer);
+                  start_serial_timer(OBD_REQUEST_TIMEOUT);  // we got data, reset the timer
+               }
+               else if (response_status == PROMPT) // if ">" is detected
+               {
+                  receiving_response = FALSE; // we're not waiting for response any more
+                  stop_serial_timer();        // stop the timer
+                  // append contents of comport_buffer to vehicle_response:
+                  strcat(vehicle_response, comport_buffer);
 
-                     if(verifying_connection)     // *** if we are verifying connection ***
-                     {  // NOTE: we only get here if we got "NO DATA" somewhere else
-                        response_type = process_response("0100", vehicle_response);
+                  if (verifying_connection)     // *** if we are verifying connection ***
+                  {  // NOTE: we only get here if we got "NO DATA" somewhere else
+                     response_type = process_response("0100", vehicle_response);
+                     verifying_connection = FALSE; // we're not verifying connection anymore
 
-                        if(response_type == HEX_DATA) // if everything seems to be fine now,
-                        {
-                           if(current_request == CLEAR_CODES)
-                              alert("There may have been a temporary loss of connection.", "Please try clearing codes again.", NULL, "OK", NULL, 0, 0);
-                           else
-                              alert("There may have been a temporary loss of connection.", "Please try reading codes again.", NULL, "OK", NULL, 0, 0);
-                        }
-                        else  // if we got an error message, respond accordingly
-                        {
-                           if(current_request == CLEAR_CODES) // if we were clearing codes,
-                              alert("Communication problem: vehicle did not confirm successful", "deletion of trouble codes.  Please check connection to the vehicle,", "make sure the ignition is ON, and try clearing the codes again.", "OK", NULL, 0, 0);
-                           else // if we were reading codes,
-                              alert("There may have been a loss of connection.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "OK", NULL, 0, 0);
-                        }
-                        verifying_connection = FALSE; // we're not verifying connection anymore
-                        broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
-                     }
-
-                     else if(current_request == NUM_OF_CODES) // *** if we are getting number of codes ***
+                     if (response_type == HEX_DATA) // if everything seems to be fine now,
                      {
-                        response_type = process_response("0101", vehicle_response);
-
-                        if(response_type == ERR_NO_DATA)   // if we received "NO DATA"
-                           verifying_connection = TRUE;  // verify connection
-                        else if(response_type != HEX_DATA) // if we got an error,
-                           handle_errors(response_type, NUM_OF_CODES);  // handle it
-                        else    // if process response returned HEX_DATA (i.e. there's no errors)
-                        {  // extract # of codes from vehicle_response and store in temp_num_of_codes
-                           temp_num_of_codes = handle_num_of_codes(vehicle_response);
-                        
-                           send_command("03");   // request the codes themselves
-                           current_request = READ_CODES;  // we're reading codes now
-                           receiving_response = TRUE;     // and receiving response
-                           vehicle_response[0] = '\0';    // clear the buffer
-                           start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer...
-                        }
-                     }
-                     else if(current_request == READ_CODES) // if we are reading codes,
-                     {
-                        response_type = process_response("03", vehicle_response);
-
-                        if (response_type == ERR_NO_DATA) // vehicle didn't respond, check connection
+                        if (current_request == CLEAR_CODES)
+                           alert("There may have been a temporary loss of connection.", "Please try clearing codes again.", NULL, "OK", NULL, 0, 0);
+                        else if (current_request == NUM_OF_CODES)
+                           alert("There may have been a temporary loss of connection.", "Please try reading codes again.", NULL, "OK", NULL, 0, 0);
+                        else if (current_request == READ_CODES)
                         {
-                           if (temp_num_of_codes > 0)
-                              verifying_connection = TRUE;
-                           num_of_codes_reported = 0;
-                        }
-                        else if(response_type != HEX_DATA) // if we got an error,
-                        {
-                           handle_errors(response_type, READ_CODES);
+                           current_request = READ_PENDING;
                            break;
                         }
-                        else  // if there were *no* errors,
-                        {
-                           num_of_codes_reported = temp_num_of_codes;
-                           clear_trouble_codes();
-                           handle_read_codes(vehicle_response, FALSE);
-                        }
+                     }
+                     else if (response_type == ERR_NO_DATA)
+                     {
+                        if (current_request == CLEAR_CODES) // if we were clearing codes,
+                           alert("Communication problem: vehicle did not confirm successful", "deletion of trouble codes.  Please check connection to the vehicle,", "make sure the ignition is ON, and try clearing the codes again.", "OK", NULL, 0, 0);
+                        else // if we were reading codes or requesting number or DTCs
+                           alert("There may have been a loss of connection.", "Please check connection to the vehicle,", "and make sure the ignition is ON", "OK", NULL, 0, 0);
+                     }
+                     else
+                        display_error_message(response_type, FALSE);
                         
-                        send_command("07");   // request the codes themselves
-                        current_request = READ_PENDING;  // we're reading codes now
+                     broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
+                  }
+
+                  else if (current_request == NUM_OF_CODES) // *** if we are getting number of codes ***
+                  {
+                     response_type = process_response("0101", vehicle_response);
+
+                     if (response_type == ERR_NO_DATA)   // if we received "NO DATA"
+                        verifying_connection = TRUE;  // verify connection
+                     else if (response_type != HEX_DATA) // if we got an error,
+                        handle_errors(response_type, NUM_OF_CODES);  // handle it
+                     else    // if process response returned HEX_DATA (i.e. there are no errors)
+                     {  // extract # of codes from vehicle_response
+                        num_of_codes_reported = handle_num_of_codes(vehicle_response);
+                     
+                        send_command("03");   // request "stored" codes
+                        current_request = READ_CODES;  // we're reading stored codes now
                         receiving_response = TRUE;     // and receiving response
                         vehicle_response[0] = '\0';    // clear the buffer
                         start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer...
                      }
-                     else if(current_request == READ_PENDING) // if we are reading pending codes,
+                  }
+                  else if (current_request == READ_CODES) // if we are reading codes,
+                  {
+                     response_type = process_response("03", vehicle_response);
+
+                     if (response_type == ERR_NO_DATA) // vehicle didn't respond, check connection
                      {
-                        response_type = process_response("07", vehicle_response);
-
-                        if (response_type == ERR_NO_DATA) // vehicle didn't respond, check connection
-                        {
-                           if (get_number_of_codes() == 0)
-                              alert("No Diagnostic Trouble Codes (DTCs) detected", NULL, NULL, "OK", NULL, 0, 0);
-                        }
-                        else if(response_type != HEX_DATA) // if we got an error,
-                        {
-                           handle_errors(response_type, READ_CODES);
-                           break;
-                        }
-                        else  // if there were *no* errors,
-                           handle_read_codes(vehicle_response, TRUE);
-
-                        populate_trouble_codes_list();
-                        broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
-                     }
-                     else if(current_request == CLEAR_CODES)
-                     {
-                        response_type = process_response("04", vehicle_response);
-
-                        if (response_type == ERR_NO_DATA)// vehicle didn't respond, check connection
+                        if (num_of_codes_reported > 0)
                            verifying_connection = TRUE;
-                        else if(response_type != HEX_DATA) // if we got an error,
-                           handle_errors(response_type, CLEAR_CODES);
-                        else // if everything's fine (received confirmation)
-                        {
-                           clear_trouble_codes();
-                           num_of_codes_reported = 0;
-                           mil_is_on = FALSE;
-                           broadcast_dialog_message(MSG_READY, 0);
-                        }
+                        else
+                           current_request = READ_PENDING;
                      }
+                     else if (response_type == HEX_DATA)
+                     {
+                        handle_read_codes(vehicle_response, FALSE);
+                        current_request = READ_PENDING;
+                     }
+                     else  // if we got an error
+                        handle_errors(response_type, READ_CODES);
+                  }
+                  else if(current_request == READ_PENDING) // if we are reading pending codes,
+                  {
+                     response_type = process_response("07", vehicle_response);
+
+                     if (response_type == ERR_NO_DATA)
+                     {
+                        if (get_number_of_codes() == 0 && num_of_codes_reported == 0)
+                           alert("No Diagnostic Trouble Codes (DTCs) detected", NULL, NULL, "OK", NULL, 0, 0);
+                     }
+                     else if(response_type != HEX_DATA) // if we got an error,
+                     {
+                        handle_errors(response_type, READ_PENDING);
+                        break;
+                     }
+                     else  // if there were *no* errors,
+                        pending_codes_cnt = handle_read_codes(vehicle_response, TRUE);
+
+                     // if number of DTCs reported by 0101 request does not equal either number or total DTCs or just stored DTCs
+                     if ((get_number_of_codes() != num_of_codes_reported) && (get_number_of_codes() - pending_codes_cnt != num_of_codes_reported))
+                     {
+                        sprintf(buf1, "Vehicle reported %i Diagnostic Trouble Codes (DTCs).", num_of_codes_reported);
+                        sprintf(buf2, "However, %i DTC(s) have been successfully read.", get_number_of_codes());
+                        alert(buf1, buf2, "Try reading codes again.", "OK", NULL, 0, 0);
+                     }
+
+                     populate_trouble_codes_list();
+                     broadcast_dialog_message(MSG_READY, 0); // tell everyone we're done
+                  }
+                  else if(current_request == CLEAR_CODES)
+                  {
+                     response_type = process_response("04", vehicle_response);
+
+                     if (response_type == ERR_NO_DATA)// vehicle didn't respond, check connection
+                        verifying_connection = TRUE;
+                     else if(response_type != HEX_DATA) // if we got an error,
+                        handle_errors(response_type, CLEAR_CODES);
+                     else // if everything's fine (received confirmation)
+                     {
+                        clear_trouble_codes();
+                        num_of_codes_reported = 0;
+                        mil_is_on = FALSE;
+                        broadcast_dialog_message(MSG_READY, 0);
+                     }
+                  }
+               }
+               else if (serial_time_out)     // if request timed out,
+               {
+                  stop_serial_timer();
+                  receiving_response = FALSE;
+                  num_of_codes_reported = 0;
+                  mil_is_on = FALSE;
+                  clear_trouble_codes();
+                  broadcast_dialog_message(MSG_READY, 0);
+
+                  if(alert("Device is not responding.", "Please check that it is connected", "and the port settings are correct", "OK",  "&Configure Port", 27, 'c') == 2)
+                     display_options();   // let the user choose correct settings
+
+                  while (comport.status == NOT_OPEN)
+                  {
+                     if (alert("Port is not ready.", "Please check that you specified the correct port", "and that no other application is using it", "&Configure Port", "&Ignore", 'c', 'i') == 1)
+                        display_options(); // let the user choose correct settings
+                     else
+                        comport.status = USER_IGNORED;
                   }
                }
             }
          }
-         
-         if (serial_time_out)     // if request timed out,
-         {
-            receiving_response = FALSE;
-            clear_trouble_codes();
-            broadcast_dialog_message(MSG_READY, 0);
-            if (!simulate)
-            {
-               if(alert("Device is not responding.", "Please check that it is connected", "and the port settings are correct", "OK",  "&Configure Port", 27, 'c') == 2)
-                  display_options();   // let the user choose correct settings
-            
-               while (comport.status == NOT_OPEN)
-               {
-                  if (alert("Port is not ready.", "Please check that you specified the correct port", "and that no other application is using it", "&Configure Port", "&Ignore", 'c', 'i') == 1)
-                     display_options(); // let the user choose correct settings
-                  else
-                     comport.status = USER_IGNORED;
-               }
-            }
-            stop_serial_timer();
-         }
          break;  // end case MSG_IDLE
 
       case MSG_START:
+         first_read_occured = FALSE;
+         num_of_codes_reported = 0;
+         mil_is_on = FALSE;
+         // fall through
+         
+      case MSG_READY:
          receiving_response = FALSE;
          verifying_connection = FALSE;
-         first_read_occured = FALSE;
+         current_request = CRQ_NONE;
          break;
 
       case MSG_READ_CODES:
          if (comport.status == READY)
          {
             send_command("0101"); // request number of trouble codes
+            start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer
             current_request = NUM_OF_CODES;
             receiving_response = TRUE; // now we're waiting for response
             vehicle_response[0] = 0;
-            start_serial_timer(OBD_REQUEST_TIMEOUT); // start the timer
+            clear_trouble_codes();
+            num_of_codes_reported = 0;
+            mil_os_on = FALSE;
          }
          else
             serial_time_out = TRUE;
@@ -1062,6 +1089,9 @@ void handle_errors(int error, int operation)
    {
       display_error_message(error, FALSE);
       retry_attempts = NUM_OF_RETRIES;
+      clear_trouble_codes();
+      num_of_codes_reported = 0;
+      mil_is_on = FALSE;
       broadcast_dialog_message(MSG_READY, 0); // tell everyone that we're done
    }
    else    // if we received "BUS BUSY", "DATA ERROR", "<DATA ERROR", SERIAL_ERROR, or RUBBISH,
@@ -1076,7 +1106,7 @@ void handle_errors(int error, int operation)
             case NUM_OF_CODES:  // if we are currently reading codes,
                broadcast_dialog_message(MSG_READ_CODES, 0); // try reading again
                break;
-               
+
             case CLEAR_CODES:   // if we are currently clearing codes,
                broadcast_dialog_message(MSG_CLEAR_CODES, 0);  // try clearing again
                break;
@@ -1086,6 +1116,9 @@ void handle_errors(int error, int operation)
       {
          display_error_message(error, FALSE);
          retry_attempts = NUM_OF_RETRIES; // reset the number of retry attempts
+         clear_trouble_codes();
+         num_of_codes_reported = 0;
+         mil_is_on = FALSE;
          broadcast_dialog_message(MSG_READY, 0); // tell everyone that we're done
       }
    }
