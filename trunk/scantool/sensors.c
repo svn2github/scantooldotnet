@@ -112,7 +112,7 @@ static SENSOR sensors[] =
    { engine_rpm_formula,            "Engine RPM:",                     "", "0C",      1,    2 },
    { vehicle_speed_formula,         "Vehicle Speed:",                  "", "0D",      1,    1 },
    { engine_load_formula,           "Calculated Load Value:",          "", "04",      1,    1 },
-   { timing_advance_formula,        "Timing Advance for #1 Cylinder:", "", "0E",      1,    1 },
+   { timing_advance_formula,        "Timing Advance (Cyl. #1):",       "", "0E",      1,    1 },
    { intake_pressure_formula,       "Intake Manifold Pressure:",       "", "0B",      1,    1 },
    { air_flow_rate_formula,         "Air Flow Rate (MAF sensor):",     "", "10",      1,    2 },
    { fuel_system1_status_formula,   "Fuel System 1 Status:",           "", "03",      1,    2 },
@@ -808,8 +808,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
    if ((msg == MSG_IDLE) && reset_hardware && comport.status == READY) // if user hit "Reset Chip" button, and we're doing nothing
    {
       reset_hardware = FALSE;	 
-      if (receiving_response) 
-         receiving_response = FALSE; 
+      receiving_response = FALSE;
          
       reset_chip();
       return D_O_K;
@@ -831,6 +830,7 @@ int sensor_proc(int msg, DIALOG *d, int c)
          }
          d->d2 = 0;
          d->flags &= ~D_DISABLED;
+         // fall through
 
       case MSG_UPDATE:
          if (d->d1 == 0)  // if it's the first sensors in sensor_dialog
@@ -905,7 +905,6 @@ int sensor_proc(int msg, DIALOG *d, int c)
                   if (d->flags & D_DISABLED) // if the sensor is disabled
                   {
                      current_sensor = (current_sensor == sensors_on_page - 1) ? 0 : current_sensor + 1; // go to the next sensor
-                     receiving_response = FALSE;
                      return D_O_K;
                   }
 
@@ -1166,7 +1165,7 @@ void short_term_fuel_trim_formula(int data, char *buf)
    if (data > 0xFF)  // we're only showing bank 1 and 2 FT
       data >>= 8;
 
-   sprintf(buf, "%+.1f%%", ((float)data - 128)*100/128);
+   sprintf(buf, (data == 128) ? "0.0%%" : "%+.1f%%", ((float)data - 128)*100/128);
 }
 
 
@@ -1175,7 +1174,7 @@ void long_term_fuel_trim_formula(int data, char *buf)
    if (data > 0xFF)  // we're only showing bank 1 and 2 FT
       data >>= 8;
 
-   sprintf(buf, "%+.f%%", ((float)data - 128)*100/128);
+   sprintf(buf, (data == 128) ? "0.0%%" : "%+.1f%%", ((float)data - 128)*100/128);
 }
 
 
@@ -1202,7 +1201,7 @@ void o2_sensor_formula(int data, char *buf)
    if ((data & 0xFF) == 0xFF)  // if the sensor is not used in fuel trim calculation,
       sprintf(buf, "%.3f V", (data >> 8)*0.005);
    else
-      sprintf(buf, "%.3f V @ %+.1f%% s.t. fuel trim", (data >> 8)*0.005, ((float)(data & 0xFF) - 128)*100/128);
+      sprintf(buf, ((data & 0xFF) == 128) ? "%.3f V @ 0.0%% s.t. fuel trim" : "%.3f V @ %+.1f%% s.t. fuel trim", (data >> 8)*0.005, ((float)(data & 0xFF) - 128)*100/128);
 }
 
 
@@ -1336,7 +1335,7 @@ void commanded_egr_formula(int data, char *buf)
 //EGR error: PID 2D
 void egr_error_formula(int data, char *buf)
 {
-   sprintf(buf, "%+.1f%%", (float)(data-128)/255*100);
+   sprintf(buf, (data == 128) ? "0.0%%" : "%+.1f%%", (float)(data-128)/255*100);
 }
 
 
