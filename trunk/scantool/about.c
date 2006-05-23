@@ -26,7 +26,7 @@ static char obd_mfr[64];
 static char obd_protocol[64];
 static char obd_system[64];
 
-#define VER_STR   "Version " SCANTOOL_VERSION_EX_STR " for " SCANTOOL_PLATFORM_STR ", Copyright © " SCANTOOL_YEAR_STR " ScanTool.net, LLC"
+#define VER_STR   "Version " SCANTOOL_VERSION_EX_STR " for " SCANTOOL_PLATFORM_STR ", " SCANTOOL_COPYRIGHT_STR
 
 static DIALOG about_dialog[] =
 {
