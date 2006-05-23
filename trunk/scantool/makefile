@@ -48,6 +48,9 @@ endif
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) -o $(BIN) $(OBJ) $(LIBS)
 
+release:
+	make RELEASE=1
+
 all: $(BIN)
 
 clean:
