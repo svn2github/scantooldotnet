@@ -156,6 +156,7 @@ int reset_proc(int msg, DIALOG *d, int c)
                   strcat(response, buf); // append contents of buf to response
                else if(status == PROMPT) // if '>' detected
                {
+                  stop_serial_timer();
                   strcat(response, buf);
                   device = process_response("atz", response);
                   if (device == INTERFACE_ELM323 || device == INTERFACE_ELM327)
