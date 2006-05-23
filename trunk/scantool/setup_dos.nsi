@@ -2,8 +2,8 @@
 
 ; HM NIS Edit Wizard helper defines
 !define PRODUCT_NAME "ScanTool.net for DOS"
-!define PRODUCT_VERSION "v1.12"
-!define PRODUCT_VERSION_NUM "112"
+!define PRODUCT_VERSION "v1.13"
+!define PRODUCT_VERSION_NUM "113"
 !define PRODUCT_PUBLISHER "ScanTool.net, LLC"
 !define PRODUCT_WEB_SITE "http://www.scantool.net"
 !define PRODUCT_DIR_REGKEY "Software\Microsoft\Windows\CurrentVersion\App Paths\${PRODUCT_NAME}"
