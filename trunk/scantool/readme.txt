@@ -60,6 +60,9 @@ Support Page located at http://www.scantool.net/support
 ======================================
 
    v1.13  -  Fixed some formatting, precision, and conversion errors in sensor formulas
+          -  Fixed inconsistent refresh rate display in Sensor Data
+          -  Refined handling of number of DTCs reported being different from number of DTCs read
+          -  Small bug fixes
    v1.12  -  Refined error descriptions for ELM327
              CAN DTC responses are now handled properly
              SAE-defined DTCs with no description are now not identified as manufacturer-defined
